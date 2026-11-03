@@ -304,9 +304,9 @@ mod tests {
             adapter_ok: true,
             capturing: true,
         });
-        state.set_pending(profile("ccfnq"), u(HOME_URL));
+        state.set_pending(profile("home"), u(HOME_URL));
         let pending = state.on_destroyed().expect("pending open");
-        assert_eq!(pending.0.name, "ccfnq");
+        assert_eq!(pending.0.name, "home");
         assert_eq!(pending.1, u(HOME_URL));
         assert_eq!(state.call(), CallState::default());
         assert!(state.on_destroyed().is_none(), "handed over once");
