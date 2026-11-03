@@ -26,29 +26,16 @@ const FACES_JS: &str = include_str!("../inject/faces.js");
 pub enum NavRoute {
     Stay,
     Redirect(Url),
-    Browser,
 }
 
-/// Google's own hosts, which Meet's frames and sign-in move between.
-fn is_google_family(host: &str) -> bool {
-    [
-        "google.com",
-        "gstatic.com",
-        "youtube.com",
-        "googleusercontent.com",
-        "googleapis.com",
-    ]
-    .iter()
-    .any(|d| host == *d || host.ends_with(&format!(".{d}")))
-}
-
-/// Decide a navigation in the Meet window (every frame's, not only the main frame's).
+/// Decide a navigation in the Meet window. `on_navigation` sees every frame's navigations and
+/// can't tell a subframe from the main frame, so everything loads in place (add-on iframes,
+/// federated sign-in) except the Workspace marketing page, where Meet sends a signed-out profile.
+/// Links Meet opens in a new window go to the default browser from `on_new_window` instead.
 pub fn route_navigation(url: &Url) -> NavRoute {
     match url.host_str() {
-        None => NavRoute::Stay, // about:blank, data:, the faces popup
         Some("workspace.google.com") => NavRoute::Redirect(Url::parse(HOME_URL).unwrap()),
-        Some(h) if is_google_family(h) => NavRoute::Stay,
-        Some(_) => NavRoute::Browser,
+        _ => NavRoute::Stay,
     }
 }
 
@@ -57,6 +44,22 @@ pub struct CallState {
     pub in_call: bool,
     pub others: usize,
     pub adapter_ok: bool,
+    /// The page holds a live camera or mic track — read from getUserMedia, not Meet's DOM.
+    pub capturing: bool,
+}
+
+impl CallState {
+    /// The user just left a call (not merely: the adapter's first report says "not in one").
+    pub fn left(prev: CallState, next: CallState) -> bool {
+        prev.in_call && !next.in_call
+    }
+}
+
+/// Whether replacing the Meet window's page needs the user's OK. A live camera or mic capture
+/// counts as a call even when the adapter reports none, so a Meet redesign that hides the
+/// adapter's in-call marker can't make a join drop a live call silently.
+pub fn must_ask_before_replacing(call: CallState, capture_active: bool) -> bool {
+    call.in_call || capture_active
 }
 
 #[derive(Default)]
@@ -68,6 +71,9 @@ pub struct MeetState {
 struct Inner {
     profile: Option<String>,
     call: CallState,
+    /// An open waiting for the current window to finish closing: a window's label stays taken
+    /// until its `Destroyed` event, so the replacement is built from there.
+    pending: Option<(Profile, Url)>,
 }
 
 impl MeetState {
@@ -76,6 +82,19 @@ impl MeetState {
     }
     pub fn set_call(&self, call: CallState) {
         self.inner.lock().unwrap().call = call;
+    }
+    /// Record the call state and report the previous one.
+    pub fn swap_call(&self, call: CallState) -> CallState {
+        std::mem::replace(&mut self.inner.lock().unwrap().call, call)
+    }
+    fn set_pending(&self, profile: Profile, url: Url) {
+        self.inner.lock().unwrap().pending = Some((profile, url));
+    }
+    /// The Meet window is gone: no call, and hand over any open that was waiting for it.
+    fn on_destroyed(&self) -> Option<(Profile, Url)> {
+        let mut g = self.inner.lock().unwrap();
+        g.call = CallState::default();
+        g.pending.take()
     }
     fn profile(&self) -> Option<String> {
         self.inner.lock().unwrap().profile.clone()
@@ -97,7 +116,8 @@ pub fn open_meet(app: &AppHandle, profile: &Profile, url: &Url) {
     if let Some(w) = meet_window(app) {
         let _ = w.show();
         let _ = w.set_focus();
-        if state.call().in_call {
+        let call = state.call();
+        if must_ask_before_replacing(call, call.capturing) {
             let (app, profile, url) = (app.clone(), profile.clone(), url.clone());
             app.dialog()
                 .message("Leave this call and join the new one?")
@@ -128,11 +148,25 @@ fn replace(app: &AppHandle, profile: &Profile, url: &Url) {
             state.set_call(CallState::default());
             return;
         }
+        // The label stays taken until the old window's Destroyed event, which builds this one.
+        state.set_pending(profile.clone(), url.clone());
         let _ = w.destroy();
+        return;
     }
-    state.set_profile(&profile.name);
+    open_new(app, profile, url);
+}
+
+fn open_new(app: &AppHandle, profile: &Profile, url: &Url) {
+    app.state::<MeetState>().set_profile(&profile.name);
     if let Err(e) = build(app, profile, url) {
         eprintln!("cooee: can't open the Meet window: {e}");
+    }
+}
+
+/// Return the Meet window to its profile's home after the user leaves a call.
+pub fn go_home(app: &AppHandle) {
+    if let Some(w) = meet_window(app) {
+        let _ = w.navigate(Url::parse(HOME_URL).unwrap());
     }
 }
 
@@ -157,10 +191,6 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
                 });
                 false
             }
-            NavRoute::Browser => {
-                shell_core::web::escape::escape_to_default_browser(url.as_str());
-                false
-            }
         })
         .on_new_window(move |url, features| {
             if url.host_str().is_none() {
@@ -172,9 +202,14 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
         })
         .on_page_load(|w, payload| {
             if payload.event() == PageLoadEvent::Started {
-                let app = w.app_handle();
-                app.state::<MeetState>().set_call(CallState::default());
-                crate::faces::close(app);
+                let app = w.app_handle().clone();
+                let prev = app.state::<MeetState>().swap_call(CallState::default());
+                crate::faces::close(&app);
+                // Leaving a call by navigating away (Meet's "you left" page): back to home.
+                if CallState::left(prev, CallState::default()) {
+                    let a = app.clone();
+                    let _ = app.run_on_main_thread(move || go_home(&a));
+                }
             }
         })
         .build()?;
@@ -182,8 +217,12 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
     let app = app.clone();
     w.on_window_event(move |e| {
         if let tauri::WindowEvent::Destroyed = e {
-            app.state::<MeetState>().set_call(CallState::default());
+            let pending = app.state::<MeetState>().on_destroyed();
             crate::faces::close(&app);
+            if let Some((profile, url)) = pending {
+                let app2 = app.clone();
+                let _ = app.run_on_main_thread(move || open_new(&app2, &profile, &url));
+            }
         }
     });
     Ok(())
@@ -236,15 +275,71 @@ mod tests {
     }
 
     #[test]
-    fn other_navigations_escape() {
+    fn other_hosts_load_in_place() {
+        // on_navigation can't tell a subframe from the main frame: a Meet add-on iframe or a
+        // federated sign-in (Okta, Entra) must load, not be bounced to the browser.
         assert_eq!(
             route_navigation(&u("https://example.com/doc")),
-            NavRoute::Browser
+            NavRoute::Stay
         );
         assert_eq!(
-            route_navigation(&u("https://google.com.evil.example/")),
-            NavRoute::Browser
+            route_navigation(&u("https://login.microsoftonline.com/saml")),
+            NavRoute::Stay
         );
+    }
+
+    fn profile(name: &str) -> Profile {
+        Profile {
+            name: name.into(),
+            account: None,
+        }
+    }
+
+    #[test]
+    fn destroyed_window_hands_over_the_pending_open() {
+        let state = MeetState::default();
+        state.set_call(CallState {
+            in_call: true,
+            others: 2,
+            adapter_ok: true,
+            capturing: true,
+        });
+        state.set_pending(profile("ccfnq"), u(HOME_URL));
+        let pending = state.on_destroyed().expect("pending open");
+        assert_eq!(pending.0.name, "ccfnq");
+        assert_eq!(pending.1, u(HOME_URL));
+        assert_eq!(state.call(), CallState::default());
+        assert!(state.on_destroyed().is_none(), "handed over once");
+    }
+
+    #[test]
+    fn leaving_is_the_in_call_to_not_in_call_transition() {
+        let in_call = CallState {
+            in_call: true,
+            ..CallState::default()
+        };
+        let out = CallState::default();
+        assert!(CallState::left(in_call, out));
+        assert!(!CallState::left(out, out), "green room's first report");
+        assert!(!CallState::left(out, in_call));
+        assert!(!CallState::left(in_call, in_call));
+    }
+
+    #[test]
+    fn a_live_capture_counts_as_a_call_for_the_join_guard() {
+        let out = CallState::default();
+        assert!(!must_ask_before_replacing(out, false));
+        assert!(
+            must_ask_before_replacing(out, true),
+            "adapter lost the call"
+        );
+        assert!(must_ask_before_replacing(
+            CallState {
+                in_call: true,
+                ..out
+            },
+            false
+        ));
     }
 
     #[test]

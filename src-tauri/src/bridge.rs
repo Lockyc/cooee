@@ -6,14 +6,20 @@ use tauri::{AppHandle, Manager};
 use crate::meet::{CallState, MeetState};
 
 #[tauri::command]
-pub fn meet_state(app: AppHandle, in_call: bool, others: usize, adapter_ok: bool) {
-    app.state::<MeetState>().set_call(CallState {
+pub fn meet_state(app: AppHandle, in_call: bool, others: usize, adapter_ok: bool, capturing: bool) {
+    let next = CallState {
         in_call,
         others,
         adapter_ok,
-    });
+        capturing,
+    };
+    let prev = app.state::<MeetState>().swap_call(next);
     if !in_call {
         crate::faces::close(&app);
+    }
+    if CallState::left(prev, next) {
+        let a = app.clone();
+        let _ = app.run_on_main_thread(move || crate::meet::go_home(&a));
     }
 }
 

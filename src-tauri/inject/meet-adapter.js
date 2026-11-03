@@ -26,6 +26,24 @@
   };
   const HEALTH_GRACE_MS = 10000;
 
+  // Local camera/mic tracks, captured by wrapping getUserMedia before Meet's scripts run. This
+  // is the selector-free signal that a call (or its preview) is live, so a join never silently
+  // drops a call the DOM readers below have lost track of.
+  const localTracks = new Set();
+  const md = navigator.mediaDevices;
+  if (md && md.getUserMedia) {
+    const gum = md.getUserMedia.bind(md);
+    md.getUserMedia = async (constraints) => {
+      const stream = await gum(constraints);
+      for (const t of stream.getTracks()) {
+        localTracks.add(t);
+        t.addEventListener("ended", () => localTracks.delete(t));
+      }
+      return stream;
+    };
+  }
+  const capturing = () => [...localTracks].some((t) => t.readyState === "live");
+
   const ipc = (cmd, args) => {
     try {
       return window.__TAURI_INTERNALS__?.invoke(cmd, args);
@@ -101,10 +119,11 @@
 
   function report() {
     const others = model.participants.filter((p) => !p.isSelf && !p.isPresentation).length;
-    const r = JSON.stringify([model.inCall, others, model.adapterOk]);
+    const live = capturing();
+    const r = JSON.stringify([model.inCall, others, model.adapterOk, live]);
     if (r === lastReported) return;
     lastReported = r;
-    ipc("meet_state", { inCall: model.inCall, others, adapterOk: model.adapterOk });
+    ipc("meet_state", { inCall: model.inCall, others, adapterOk: model.adapterOk, capturing: live });
   }
 
   let queued = false;
@@ -112,7 +131,10 @@
     queued = false;
     const next = read();
     const s = signature(next);
-    if (s === sig) return;
+    if (s === sig) {
+      report(); // capture state changes without a model change; report() dedups
+      return;
+    }
     model = next;
     sig = s;
     report();
