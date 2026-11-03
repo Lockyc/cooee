@@ -1,0 +1,17 @@
+name    = "cooee"
+summary = "macOS menu-bar app that runs Google Meet in its own window and floats the other people's faces in an always-on-top window you snap to where you look."
+kind    = "app"
+status  = "active"
+tags    = ["video-calls", "google-meet", "macos"]
+stack   = ["rust", "tauri", "javascript"]
+
+[github]
+topics_extra = ["tauri-app", "wkwebview", "picture-in-picture"]
+
+[[provides]]
+name    = "meet-faces-window"
+summary = "An always-on-top window of a Google Meet call's other participants, snapped between saved spots by hotkey"
+
+[[provides]]
+name    = "meet-join-link"
+summary = "cooee://join?profile=&url= opens a Meet link in a chosen Google profile; profiles.json lists the profiles"
