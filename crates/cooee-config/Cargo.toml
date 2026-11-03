@@ -1,0 +1,13 @@
+[package]
+name = "cooee-config"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+url = "2"
+# Shared config-path resolution + house TOML formatter, pinned by rev in lockstep with the siblings.
+config-core = { git = "https://github.com/Lockyc/config-core", rev = "69b38586661ff44df21f01d715484792014cdd82" }

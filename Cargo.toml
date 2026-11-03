@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["crates/cooee-config"]
+
+# ── shared-core local-dev overrides (managed by `just config-dev`/`config-pin`, `shell-dev`/`shell-pin`) ──
+# Leave COMMENTED in git — an active path patch builds green for you but is unresolvable for every
+# other clone. Each `*-dev` recipe uncomments only its own #PATCH:<core># lines to build against the
+# sibling ../<core>; each `*-pin` re-pins the rev to that sibling's pushed HEAD and re-comments.
+# `just gate` refuses to pass while any is active. Don't hand-edit these lines — use the recipes.
+#PATCH:config#[patch."https://github.com/Lockyc/config-core"]
+#PATCH:config#config-core = { path = "../config-core" }
+#PATCH:shell#[patch."https://github.com/Lockyc/shell-core"]
+#PATCH:shell#shell-core = { path = "../shell-core" }
