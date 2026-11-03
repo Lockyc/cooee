@@ -52,14 +52,17 @@ page navigates, or when the Meet window is destroyed. A close by the user only h
 - **The Meet window's start page is Google sign-in** (`meet::HOME_URL`), continuing to Meet. Meet's
   own `/` sends a signed-out profile to the Workspace marketing page, which `route_navigation`
   redirects to `HOME_URL`. Pointing `HOME_URL` at `/` would loop.
-- **`on_navigation` sees every frame, not only the main frame.** Google-family hosts stay in the
-  window; anything else opens in the default browser.
+- **`on_navigation` sees every frame, not only the main frame**, so it can't send a page to the
+  browser without also breaking add-on iframes and federated sign-in. Everything loads in place
+  except the marketing redirect. Links Meet opens in a new window go to the browser from
+  `on_new_window`.
 - **Camera and mic need a bundled `.app`** with Info.plist usage strings, so `just run` builds a
   debug bundle. `cargo run` can't use the camera.
 - **`cooee://` links arrive as `RunEvent::Opened`.** `Info.plist` declares the scheme, the same
   way flotilla does. `tauri-plugin-deep-link` never received the event here.
-- **Spot geometry is in physical pixels of the chosen screen**, with config sizes (points) scaled
-  by that screen's factor. That keeps placement right across a retina laptop plus a TV.
+- **Spot geometry is in logical points.** Physical pixels are not one space on macOS: tao scales
+  each monitor's origin by that monitor's own factor. A spot is the window's outer origin plus
+  its inner size, because that is what `set_position` and `set_size` apply.
 
 ## Build, test, release
 
