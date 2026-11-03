@@ -12,6 +12,9 @@ pub fn meet_state(app: AppHandle, in_call: bool, others: usize, adapter_ok: bool
         others,
         adapter_ok,
     });
+    if !in_call {
+        crate::faces::close(&app);
+    }
 }
 
 /// Write the adapter's layout snapshot to `<app data>/adapter-dump.json` and reveal it.

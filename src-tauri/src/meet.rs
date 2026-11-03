@@ -19,6 +19,8 @@ pub const HOME_URL: &str =
 
 /// The injected adapter: the only code that knows Meet's DOM.
 const ADAPTER_JS: &str = include_str!("../inject/meet-adapter.js");
+/// The faces UI: consumes the adapter's neutral model only.
+const FACES_JS: &str = include_str!("../inject/faces.js");
 
 #[derive(Debug, PartialEq)]
 pub enum NavRoute {
@@ -136,12 +138,14 @@ fn replace(app: &AppHandle, profile: &Profile, url: &Url) {
 
 fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
     let nav_app = app.clone();
+    let popup_app = app.clone();
     let w = WebviewWindowBuilder::new(app, MEET_LABEL, WebviewUrl::External(url.clone()))
         .title(format!("Meet — {}", profile.name))
         .inner_size(1200.0, 820.0)
         .user_agent(shell_core::web::desktop_ua())
         .data_store_identifier(shell_core::web::session::data_store_id(&profile.name))
         .initialization_script(ADAPTER_JS)
+        .initialization_script(FACES_JS)
         .on_navigation(move |url| match route_navigation(url) {
             NavRoute::Stay => true,
             NavRoute::Redirect(to) => {
@@ -158,21 +162,30 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
                 false
             }
         })
-        .on_new_window(|url, _features| {
-            if url.host_str().is_some() {
-                shell_core::web::escape::escape_to_default_browser(url.as_str());
+        .on_new_window(move |url, features| {
+            if url.host_str().is_none() {
+                // faces.js's `window.open("")`: the faces window.
+                return crate::faces::create(&popup_app, features);
             }
+            shell_core::web::escape::escape_to_default_browser(url.as_str());
             NewWindowResponse::Deny
         })
         .on_page_load(|w, payload| {
             if payload.event() == PageLoadEvent::Started {
-                w.app_handle()
-                    .state::<MeetState>()
-                    .set_call(CallState::default());
+                let app = w.app_handle();
+                app.state::<MeetState>().set_call(CallState::default());
+                crate::faces::close(app);
             }
         })
         .build()?;
     allow_scripted_popups(&w)?;
+    let app = app.clone();
+    w.on_window_event(move |e| {
+        if let tauri::WindowEvent::Destroyed = e {
+            app.state::<MeetState>().set_call(CallState::default());
+            crate::faces::close(&app);
+        }
+    });
     Ok(())
 }
 
