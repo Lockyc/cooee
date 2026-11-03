@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/cooee-config"]
+members = ["src-tauri", "crates/cooee-config"]
 
 # ── shared-core local-dev overrides (managed by `just config-dev`/`config-pin`, `shell-dev`/`shell-pin`) ──
 # Leave COMMENTED in git — an active path patch builds green for you but is unresolvable for every

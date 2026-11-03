@@ -74,7 +74,10 @@ mod tests {
     #[test]
     fn parse_meet_link_rejects_other_hosts() {
         assert_eq!(parse_meet_link("https://example.com/abc"), None);
-        assert_eq!(parse_meet_link("https://meet.google.com.evil.example/abc"), None);
+        assert_eq!(
+            parse_meet_link("https://meet.google.com.evil.example/abc"),
+            None
+        );
         assert_eq!(parse_meet_link("not a url"), None);
         assert_eq!(parse_meet_link("http://meet.google.com/abc-defg-hij"), None);
     }
@@ -89,8 +92,8 @@ mod tests {
     #[test]
     fn profile_for_link_matches_account() {
         let cfg = two_profiles();
-        let link =
-            parse_meet_link("https://meet.google.com/abc-defg-hij?authuser=me@example.com").unwrap();
+        let link = parse_meet_link("https://meet.google.com/abc-defg-hij?authuser=me@example.com")
+            .unwrap();
         match profile_for_link(&cfg, &link) {
             ProfilePick::Profile(p) => assert_eq!(p.name, "work"),
             ProfilePick::Ask => panic!("expected work"),
@@ -101,14 +104,17 @@ mod tests {
     fn profile_for_link_single_profile_needs_no_ask() {
         let cfg = parse_and_validate("").unwrap();
         let link = parse_meet_link("https://meet.google.com/abc-defg-hij?authuser=x@y.z").unwrap();
-        assert!(matches!(profile_for_link(&cfg, &link), ProfilePick::Profile(p) if p.name == "default"));
+        assert!(
+            matches!(profile_for_link(&cfg, &link), ProfilePick::Profile(p) if p.name == "default")
+        );
     }
 
     #[test]
     fn profile_for_link_unknown_account_asks() {
         let cfg = two_profiles();
         let link =
-            parse_meet_link("https://meet.google.com/abc-defg-hij?authuser=other@example.com").unwrap();
+            parse_meet_link("https://meet.google.com/abc-defg-hij?authuser=other@example.com")
+                .unwrap();
         assert!(matches!(profile_for_link(&cfg, &link), ProfilePick::Ask));
         let bare = parse_meet_link("https://meet.google.com/abc-defg-hij").unwrap();
         assert!(matches!(profile_for_link(&cfg, &bare), ProfilePick::Ask));

@@ -1,0 +1,28 @@
+# cooee demo config — `just run` points COOEE_CONFIG here. Copy to ~/.config/cooee/config.toml.
+
+# Each profile is its own Google sign-in. A Meet link carrying `authuser=<account>` opens in the
+# profile whose account matches.
+[[profile]]
+name = "work"
+account = "me@example.com"
+
+[[profile]]
+name = "home"
+account = "me@example.net"
+
+# Faces-window sizes for "cycle size", smallest first.
+[[size]]
+width = 360
+height = 225
+
+[[size]]
+width = 560
+height = 350
+
+[[size]]
+width = 800
+height = 500
+
+[hotkeys]
+talk = "Ctrl+Alt+Cmd+T"
+aside = "Ctrl+Alt+Cmd+A"

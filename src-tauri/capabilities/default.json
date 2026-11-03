@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "local",
+  "description": "In-app updates for cooee's own local pages. No `remote` block: Meet's pages get only what capabilities/meet.json grants.",
+  "windows": ["*"],
+  "webviews": ["*"],
+  "permissions": ["updater:default", "process:allow-restart"]
+}

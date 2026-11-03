@@ -76,9 +76,18 @@ impl Default for Hotkeys {
 
 fn default_sizes() -> Vec<Size> {
     vec![
-        Size { width: 360, height: 225 },
-        Size { width: 560, height: 350 },
-        Size { width: 800, height: 500 },
+        Size {
+            width: 360,
+            height: 225,
+        },
+        Size {
+            width: 560,
+            height: 350,
+        },
+        Size {
+            width: 800,
+            height: 500,
+        },
     ]
 }
 
@@ -118,7 +127,9 @@ pub fn parse_and_validate(src: &str) -> Result<Config, ConfigError> {
     let mut seen = HashSet::new();
     for p in &raw.profile {
         if p.name.trim().is_empty() {
-            return Err(ConfigError::Invalid("a [[profile]] has an empty name".into()));
+            return Err(ConfigError::Invalid(
+                "a [[profile]] has an empty name".into(),
+            ));
         }
         if !seen.insert(p.name.as_str()) {
             return Err(ConfigError::Invalid(format!(
@@ -134,13 +145,24 @@ pub fn parse_and_validate(src: &str) -> Result<Config, ConfigError> {
         )));
     }
     let profiles = if raw.profile.is_empty() {
-        vec![Profile { name: DEFAULT_PROFILE.into(), account: None }]
+        vec![Profile {
+            name: DEFAULT_PROFILE.into(),
+            account: None,
+        }]
     } else {
         raw.profile
     };
-    let mut sizes = if raw.size.is_empty() { default_sizes() } else { raw.size };
+    let mut sizes = if raw.size.is_empty() {
+        default_sizes()
+    } else {
+        raw.size
+    };
     sizes.sort_by_key(|s| s.width);
-    Ok(Config { profiles, sizes, hotkeys: raw.hotkeys })
+    Ok(Config {
+        profiles,
+        sizes,
+        hotkeys: raw.hotkeys,
+    })
 }
 
 /// Load `path`; a missing file is an empty config (all defaults), so a fresh install just works.
@@ -165,9 +187,18 @@ mod tests {
         assert_eq!(
             cfg.sizes,
             vec![
-                Size { width: 360, height: 225 },
-                Size { width: 560, height: 350 },
-                Size { width: 800, height: 500 },
+                Size {
+                    width: 360,
+                    height: 225
+                },
+                Size {
+                    width: 560,
+                    height: 350
+                },
+                Size {
+                    width: 800,
+                    height: 500
+                },
             ]
         );
         assert_eq!(cfg.hotkeys.talk, "Ctrl+Alt+Cmd+T");
