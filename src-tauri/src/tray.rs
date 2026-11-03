@@ -126,7 +126,8 @@ fn join_from_clipboard(app: &AppHandle, cfg: &Config, forced: Option<&Profile>) 
     }
 }
 
-fn ask_profile(app: &AppHandle, cfg: &Config, url: Url) {
+/// Ask which profile joins `url` (a link whose account matched no single profile).
+pub fn ask_profile(app: &AppHandle, cfg: &Config, url: Url) {
     let names: Vec<String> = cfg.profiles.iter().map(|p| p.name.clone()).collect();
     let buttons = match names.as_slice() {
         [a, b] => MessageDialogButtons::YesNoCancelCustom(a.clone(), b.clone(), "Cancel".into()),

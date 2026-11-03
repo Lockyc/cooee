@@ -1,6 +1,8 @@
 //! cooee's platform-neutral config: profiles, faces-window sizes and hotkeys, plus Meet link
-//! parsing ([`link`]). No Tauri or macOS dependencies, so it unit-tests standalone.
+//! parsing ([`link`]), spot geometry ([`spots`]) and the link-router contract ([`deeplink`]). No
+//! Tauri or macOS dependencies, so it unit-tests standalone.
 
+pub mod deeplink;
 pub mod link;
 pub mod spots;
 

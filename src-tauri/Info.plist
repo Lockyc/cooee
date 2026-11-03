@@ -8,5 +8,16 @@
   <string>Google Meet uses your microphone in calls.</string>
   <key>LSUIElement</key>
   <true/>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>au.lsjc.cooee</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>cooee</string>
+      </array>
+    </dict>
+  </array>
 </dict>
 </plist>

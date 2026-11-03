@@ -1,4 +1,5 @@
 mod bridge;
+mod deeplink;
 mod faces;
 mod meet;
 mod spots;
@@ -38,6 +39,7 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             tray::install(app.handle())?;
             spots::register_hotkeys(app.handle())?;
+            deeplink::write_manifest(app.handle());
             if let Some(msg) = &load_error {
                 app.dialog()
                     .message(msg)
@@ -46,6 +48,14 @@ pub fn run() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running cooee");
+        .build(tauri::generate_context!())
+        .expect("error while building cooee")
+        .run(|app, event| {
+            // `open 'cooee://join?…'`, or a link router handing over a Meet link.
+            if let tauri::RunEvent::Opened { urls } = event {
+                for url in &urls {
+                    deeplink::handle_url(app, url.as_str());
+                }
+            }
+        });
 }
