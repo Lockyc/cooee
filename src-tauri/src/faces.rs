@@ -39,6 +39,7 @@ pub fn create(app: &AppHandle, features: NewWindowFeatures) -> NewWindowResponse
                     let _ = w.hide();
                 }
             });
+            crate::spots::place_at_talk(app);
             NewWindowResponse::Create { window }
         }
         Err(e) => {

@@ -49,7 +49,7 @@
     null,
     ["Talk", () => ipc("snap_talk")],
     ["Aside", () => ipc("snap_aside")],
-    ["Size", () => ipc("cycle_size")],
+    ["Size", () => ipc("cycle_faces_size")],
     null,
     ["Save Talk", () => ipc("save_talk")],
     ["Save Aside", () => ipc("save_aside")],

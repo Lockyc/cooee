@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-snap-aside"
+description = "Enables the snap_aside command without any pre-configured scope."
+commands.allow = ["snap_aside"]
+
+[[permission]]
+identifier = "deny-snap-aside"
+description = "Denies the snap_aside command without any pre-configured scope."
+commands.deny = ["snap_aside"]

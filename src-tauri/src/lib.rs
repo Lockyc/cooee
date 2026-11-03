@@ -1,6 +1,7 @@
 mod bridge;
 mod faces;
 mod meet;
+mod spots;
 mod tray;
 
 use tauri_plugin_dialog::DialogExt;
@@ -22,14 +23,21 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(config)
         .manage(meet::MeetState::default())
+        .manage(spots::Hotkeys::default())
         .invoke_handler(tauri::generate_handler![
             bridge::meet_state,
-            bridge::adapter_dump
+            bridge::adapter_dump,
+            spots::snap_talk,
+            spots::snap_aside,
+            spots::cycle_faces_size,
+            spots::save_talk,
+            spots::save_aside,
         ])
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             tray::install(app.handle())?;
+            spots::register_hotkeys(app.handle())?;
             if let Some(msg) = &load_error {
                 app.dialog()
                     .message(msg)
