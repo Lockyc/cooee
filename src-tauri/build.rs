@@ -4,5 +4,12 @@ fn main() {
     shell_core::build_stamp();
     shell_core::materialize_scripts(std::path::Path::new("../scripts"))
         .expect("materialize shell-core scripts");
-    tauri_build::build()
+    // Declaring the app's commands makes each one permission-gated (`allow-<command>`), so
+    // capabilities/meet.json can grant exactly these to Meet's remote origin.
+    tauri_build::try_build(
+        tauri_build::Attributes::new().app_manifest(
+            tauri_build::AppManifest::new().commands(&["meet_state", "adapter_dump"]),
+        ),
+    )
+    .expect("tauri build");
 }

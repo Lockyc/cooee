@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-adapter-dump"
+description = "Enables the adapter_dump command without any pre-configured scope."
+commands.allow = ["adapter_dump"]
+
+[[permission]]
+identifier = "deny-adapter-dump"
+description = "Denies the adapter_dump command without any pre-configured scope."
+commands.deny = ["adapter_dump"]

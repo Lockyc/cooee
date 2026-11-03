@@ -27,6 +27,7 @@ url = "2"
 # permissions resolve.
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-dialog = "2"
 shell-core = { git = "https://github.com/Lockyc/shell-core", rev = "14a4b9622fa4fa074c285b5f942189684f52ef86", features = ["runtime"] }
 cooee-config = { path = "../crates/cooee-config" }
 

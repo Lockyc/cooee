@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-meet-state"
+description = "Enables the meet_state command without any pre-configured scope."
+commands.allow = ["meet_state"]
+
+[[permission]]
+identifier = "deny-meet-state"
+description = "Denies the meet_state command without any pre-configured scope."
+commands.deny = ["meet_state"]
