@@ -2,6 +2,7 @@
 //! parsing ([`link`]). No Tauri or macOS dependencies, so it unit-tests standalone.
 
 pub mod link;
+pub mod spots;
 
 pub use link::{parse_meet_link, profile_for_link, MeetLink, ProfilePick};
 
