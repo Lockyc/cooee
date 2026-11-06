@@ -19,7 +19,7 @@ call layout is the part most likely to need adjusting (see Diagnostics below).
 
 ## What it does
 
-- **Menu-bar app.** No Dock icon between calls. The menu has **Join Meet Link from
+- **Menu-bar app.** A Dock icon only while the Meet window is open. The menu has **Join Meet Link from
   Clipboard**, one **Open Meet** item per profile, and Diagnostics.
 - **Profiles.** Each profile is its own Google sign-in, in its own WebKit data store. A Meet link
   carrying `authuser=<email>` opens in the profile with that account. Otherwise cooee asks which

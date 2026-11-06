@@ -225,6 +225,8 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
         })
         .build()?;
     allow_scripted_popups(&w)?;
+    set_regular_app(app, true);
+    let _ = w.set_focus();
     let app = app.clone();
     w.on_window_event(move |e| {
         if let tauri::WindowEvent::Destroyed = e {
@@ -233,10 +235,23 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
             if let Some((profile, url)) = pending {
                 let app2 = app.clone();
                 let _ = app.run_on_main_thread(move || open_new(&app2, &profile, &url));
+            } else {
+                set_regular_app(&app, false);
             }
         }
     });
     Ok(())
+}
+
+/// While the Meet window is open cooee is a regular app (Dock icon, ⌘-Tab, its window comes
+/// forward like any other); otherwise it lives in the menu bar alone.
+fn set_regular_app(app: &AppHandle, regular: bool) {
+    #[cfg(target_os = "macos")]
+    let _ = app.set_activation_policy(if regular {
+        tauri::ActivationPolicy::Regular
+    } else {
+        tauri::ActivationPolicy::Accessory
+    });
 }
 
 /// The adapter opens the faces popup from a DOM observer, not a click, so WebKit must allow
