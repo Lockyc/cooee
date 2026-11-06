@@ -20,7 +20,7 @@
   "plugins": {
     "updater": {
       "endpoints": ["https://github.com/Lockyc/cooee/releases/latest/download/latest.json"],
-      "pubkey": ""
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2MDJGNDg5RTQxNUJCQ0EKUldUS3V4WGtpZlFDdHVaZ0lyTVN1SGY1Y0tab2R0WTNIa1lpd0dqV29VcE41TVQ1OUliZisyM2YK"
     }
   }
 }
