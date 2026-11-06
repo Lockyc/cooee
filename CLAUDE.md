@@ -32,7 +32,7 @@ config-path resolution.
 
 ## How the faces window works
 
-`faces.js` calls `window.open("")` when the model says you're in a call. The Meet window's
+`faces.js` calls `window.open("about:blank")` when the model says you're in a call. The Meet window's
 `on_new_window` turns that request into the `faces` Tauri window, built with the opener's WebKit
 configuration (`window_features`). That shared configuration is what lets the popup play the
 call's `MediaStream`s. `faces.js` keeps a `RENDER = "canvas"` fallback in case a shared stream

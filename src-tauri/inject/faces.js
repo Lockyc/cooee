@@ -179,11 +179,23 @@
 
   function open() {
     if (popup && !popup.closed) return;
-    popup = window.open("", "cooee-faces", "width=560,height=350");
+    // An explicit URL: WebKit reports `window.open("")` as an empty string, which Tauri can't
+    // parse and denies before cooee's on_new_window sees it.
+    popup = window.open("about:blank", "cooee-faces", "width=560,height=350");
     if (!popup) return;
+    ensureBuilt();
+  }
+
+  // Tauri's faces window loads about:blank itself once created, replacing the document `open()`
+  // first sees, so the UI is (re)built into whichever document the popup holds now.
+  function ensureBuilt() {
+    if (!popup || popup.closed) return;
+    const d = popup.document;
+    if (ui && ui.d === d && d.getElementById("root")) return;
+    for (const t of tiles.values()) release(t);
     tiles.clear();
     lastOthers = 0;
-    ui = build(popup.document);
+    ui = build(d);
     render(window.__cooee.model());
   }
 
@@ -201,6 +213,7 @@
     if (!window.__cooee) return setTimeout(start, 200);
     window.__cooee.subscribe(onModel);
     onModel(window.__cooee.model());
+    setInterval(ensureBuilt, 250);
   }
 
   // Rust reopens the popup through this when the faces window was closed mid-call.

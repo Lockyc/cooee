@@ -205,7 +205,7 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
         })
         .on_new_window(move |url, features| {
             if url.host_str().is_none() {
-                // faces.js's `window.open("")`: the faces window.
+                // faces.js's `window.open("about:blank")`: the faces window.
                 return crate::faces::create(&popup_app, features);
             }
             shell_core::web::escape::escape_to_default_browser(url.as_str());
