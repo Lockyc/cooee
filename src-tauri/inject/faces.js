@@ -60,13 +60,24 @@
   const tiles = new Map(); // participant id → { el, media, video?, stream }
   let lastOthers = 0;
 
+  // Built with DOM calls, never innerHTML: the popup inherits Meet's
+  // `require-trusted-types-for 'script'` CSP, under which an innerHTML string throws.
   function build(d) {
     d.title = "cooee";
     const style = d.createElement("style");
     style.textContent = CSS;
-    d.head.append(style);
-    d.body.innerHTML = '<div id="root"><div id="grid"></div><div id="chips"></div></div><div id="message"></div><div id="bar"></div>';
-    const bar = d.getElementById("bar");
+    const div = (id, ...kids) => {
+      const el = d.createElement("div");
+      el.id = id;
+      el.append(...kids);
+      return el;
+    };
+    const grid = div("grid");
+    const chips = div("chips");
+    const message = div("message");
+    const bar = div("bar");
+    d.head.replaceChildren(style);
+    d.body.replaceChildren(div("root", grid, chips), message, bar);
     for (const c of CONTROLS) {
       if (!c) {
         bar.append(Object.assign(d.createElement("span"), { className: "sep" }));
@@ -78,7 +89,7 @@
       b.onclick = c[1];
       bar.append(b);
     }
-    return { d, grid: d.getElementById("grid"), chips: d.getElementById("chips"), message: d.getElementById("message") };
+    return { d, grid, chips, message };
   }
 
   function mediaFor(d, stream) {

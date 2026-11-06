@@ -14,13 +14,16 @@
     // One element per rendered tile; a participant's id is stable for the call.
     tile: "[data-participant-id]",
     tileId: "data-participant-id",
-    // Name text inside a tile, most specific first.
+    // Name text inside a tile, most specific first. Icon glyphs (aria-hidden, e.g. the self
+    // tile's "frame_person" Reframe icon) are never a name.
     name: ["[data-self-name]", "[data-tooltip]", ".notranslate", "span"],
     // A tile whose label or text says it is a presentation.
     presentation: /present/i,
-    // Self: Meet marks the local tile, and mirrors its video.
+    // Self: Meet marks the local tile, the People panel's row says "(You)", only your own tile
+    // carries the Reframe control, and your video is mirrored.
     selfAttr: "data-self-name",
     selfText: /^\(?you\)?$/i,
+    selfIcon: /^frame_person$/,
     // The active-speaker cue on a tile (calibrated against a live call; empty = unknown).
     speaking: "",
   };
@@ -66,28 +69,55 @@
     return v.offsetParent !== null && getComputedStyle(v).visibility !== "hidden";
   }
 
+  const isIcon = (el) => !!el.closest('[aria-hidden="true"]');
+
   function tileName(tile) {
     for (const sel of SELECTORS.name) {
-      const el = tile.querySelector(sel);
-      const t = (el?.getAttribute(SELECTORS.selfAttr) || el?.textContent || "").trim();
-      if (t) return t;
+      for (const el of tile.querySelectorAll(sel)) {
+        if (isIcon(el)) continue;
+        const t = (el.getAttribute(SELECTORS.selfAttr) || el.textContent || "").trim();
+        if (t) return t;
+      }
     }
     return "";
   }
 
-  function isSelf(tile, video) {
-    if (tile.querySelector(`[${SELECTORS.selfAttr}]`)) return true;
-    const leaves = [...tile.querySelectorAll("span,div")].filter((e) => e.children.length === 0);
-    if (leaves.some((e) => SELECTORS.selfText.test(e.textContent.trim()))) return true;
+  // `els`: every element carrying this participant's id — the tile, and the People panel's
+  // row when that panel is open.
+  function isSelf(els, video) {
+    for (const el of els) {
+      if (el.querySelector(`[${SELECTORS.selfAttr}]`)) return true;
+      const leaves = [...el.querySelectorAll("span,div,i")].filter((e) => e.children.length === 0);
+      for (const leaf of leaves) {
+        const t = leaf.textContent.trim();
+        if (SELECTORS.selfText.test(t) || SELECTORS.selfIcon.test(t)) return true;
+      }
+    }
+    const tracks = video?.srcObject?.getTracks?.() || [];
+    if (tracks.some((t) => localTracks.has(t))) return true;
     return !!video && /matrix\(-1|scaleX\(-1\)/.test(getComputedStyle(video).transform);
   }
 
+  // A tile renders its stream through more than one <video>, some hidden: the visible one is the
+  // camera; failing that, any carrying a stream.
+  function tileVideo(tile) {
+    const videos = [...tile.querySelectorAll("video")];
+    return videos.find(visibleVideo) || videos.find((v) => v.srcObject) || null;
+  }
+
   function readParticipants() {
+    const elsById = new Map();
+    for (const el of document.querySelectorAll(SELECTORS.tile)) {
+      const id = el.getAttribute(SELECTORS.tileId);
+      if (!id) continue;
+      if (!elsById.has(id)) elsById.set(id, []);
+      elsById.get(id).push(el);
+    }
     const byId = new Map();
-    for (const tile of document.querySelectorAll(SELECTORS.tile)) {
-      const id = tile.getAttribute(SELECTORS.tileId);
-      if (!id || byId.has(id)) continue;
-      const video = tile.querySelector("video");
+    for (const [id, els] of elsById) {
+      // The tile is the element with a <video>; otherwise the first (camera off, no media yet).
+      const tile = els.find((el) => el.querySelector("video")) || els[0];
+      const video = tileVideo(tile);
       const label = `${tile.getAttribute("aria-label") || ""} ${tile.textContent.slice(0, 200)}`;
       const now = Date.now();
       if (visibleVideo(video)) lastLive.set(id, now);
@@ -95,7 +125,7 @@
       byId.set(id, {
         id,
         name: tileName(tile),
-        isSelf: isSelf(tile, video),
+        isSelf: isSelf(els, video),
         isPresentation: SELECTORS.presentation.test(label),
         cameraOn,
         speaking: !!SELECTORS.speaking && !!tile.querySelector(SELECTORS.speaking),
@@ -196,7 +226,7 @@
         id: t.getAttribute(SELECTORS.tileId),
         ariaLabel: t.getAttribute("aria-label"),
         attrs: [...t.attributes].map((a) => a.name),
-        html: t.outerHTML.replace(/>[^<]{40,}</g, ">…<").slice(0, 4000),
+        html: t.outerHTML.replace(/>[^<]{40,}</g, ">…<").slice(0, 30000),
       }));
       const buttons = [...document.querySelectorAll("button[aria-label]")].map((b) =>
         b.getAttribute("aria-label")
