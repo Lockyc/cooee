@@ -204,7 +204,13 @@
       const participants = model.participants.map(({ stream, ...p }) => p);
       ipc("adapter_dump", {
         json: JSON.stringify(
-          { at: new Date().toISOString(), model: { ...model, participants }, tiles, buttons },
+          {
+            at: new Date().toISOString(),
+            model: { ...model, participants },
+            tiles,
+            buttons,
+            faces: window.__cooeeFaces?.diag?.() ?? null,
+          },
           null,
           2
         ),

@@ -217,6 +217,44 @@
   }
 
   // Rust reopens the popup through this when the faces window was closed mid-call.
-  window.__cooeeFaces = { open: () => window.__cooee?.model().inCall && open() };
+  window.__cooeeFaces = {
+    open: () => window.__cooee?.model().inCall && open(),
+    // Diagnostics, saved in the adapter's snapshot: whether the popup holds the UI, and how each
+    // tile's media is doing.
+    diag() {
+      let doc = null;
+      try {
+        const d = popup?.document;
+        doc = d && {
+          url: d.URL,
+          readyState: d.readyState,
+          built: !!ui && ui.d === d && !!d.getElementById("root"),
+          gridChildren: d.getElementById("grid")?.children.length ?? null,
+          message: d.getElementById("message")?.textContent ?? null,
+        };
+      } catch (e) {
+        doc = { error: String(e) };
+      }
+      return {
+        render: RENDER,
+        popupOpen: !!popup && !popup.closed,
+        doc,
+        tiles: [...tiles].map(([id, t]) => {
+          const v = t.video || t.media;
+          const track = t.stream?.getVideoTracks?.()[0];
+          return {
+            id,
+            name: t.name.textContent,
+            connected: t.el.isConnected,
+            box: [t.el.clientWidth, t.el.clientHeight],
+            readyState: v.readyState,
+            paused: v.paused,
+            videoSize: [v.videoWidth, v.videoHeight],
+            track: track && { readyState: track.readyState, muted: track.muted, enabled: track.enabled },
+          };
+        }),
+      };
+    },
+  };
   start();
 })();
