@@ -44,11 +44,20 @@
   }
   const capturing = () => [...localTracks].some((t) => t.readyState === "live");
 
+  // Always a promise, so a caller can retry on failure.
   const ipc = (cmd, args) => {
     try {
-      return window.__TAURI_INTERNALS__?.invoke(cmd, args);
-    } catch (_) {}
+      const p = window.__TAURI_INTERNALS__?.invoke(cmd, args);
+      return p || Promise.reject(new Error("no Tauri IPC"));
+    } catch (e) {
+      return Promise.reject(e);
+    }
   };
+
+  // A tile's video stays "on" through a brief freeze (a network blip mutes the track for a
+  // moment), so the faces window doesn't flip it to a name chip and back.
+  const CAMERA_OFF_GRACE_MS = 1500;
+  const lastLive = new Map(); // participant id → last time its video was live
 
   function visibleVideo(v) {
     if (!v || !v.srcObject || v.videoWidth === 0) return false;
@@ -80,7 +89,9 @@
       if (!id || byId.has(id)) continue;
       const video = tile.querySelector("video");
       const label = `${tile.getAttribute("aria-label") || ""} ${tile.textContent.slice(0, 200)}`;
-      const cameraOn = visibleVideo(video);
+      const now = Date.now();
+      if (visibleVideo(video)) lastLive.set(id, now);
+      const cameraOn = !!video?.srcObject && now - (lastLive.get(id) || 0) < CAMERA_OFF_GRACE_MS;
       byId.set(id, {
         id,
         name: tileName(tile),
@@ -123,7 +134,9 @@
     const r = JSON.stringify([model.inCall, others, model.adapterOk, live]);
     if (r === lastReported) return;
     lastReported = r;
-    ipc("meet_state", { inCall: model.inCall, others, adapterOk: model.adapterOk, capturing: live });
+    ipc("meet_state", { inCall: model.inCall, others, adapterOk: model.adapterOk, capturing: live }).catch(() => {
+      if (lastReported === r) lastReported = ""; // resend on the next tick
+    });
   }
 
   let queued = false;
@@ -195,7 +208,7 @@
           null,
           2
         ),
-      });
+      }).catch((e) => console.error("cooee snapshot", e));
     },
   };
 

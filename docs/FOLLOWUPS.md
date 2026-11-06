@@ -13,19 +13,6 @@ links:
   snapshot (Diagnostics) in a call with a second participant, then set `SELECTORS` from it.
 - **Confirm shared-stream rendering in the faces window.** If the popup shows black, switch
   `RENDER` to `"canvas"` in `inject/faces.js`.
-- **Faces-window polish, from the v0.1 review.** None of these blocks a call. Next action: take
-  them after the live calibration, since several need a live call to see.
-  - The window takes focus on join, so Meet's ⌘D/⌘E stop working until you click back (`.focused(false)`).
-  - Every render re-appends each tile, which may flicker video (re-append only on reorder).
-  - A brief network freeze (`track.muted`) turns a tile into a chip and back (debounce 1–2 s).
-  - Removed tiles and the canvas fallback keep their streams alive (`srcObject = null`).
-  - Re-opening it while an old one is still registered hits the same destroy-then-build race the
-    Meet window had.
-  - Tray items for the spots and sizes, as a fallback when a hotkey clashes.
-  - With 3+ profiles, a `cooee://join` link gets a clipboard instruction instead of a picker.
-  - A profile named "Cancel" would join when Cancel is clicked.
-  - Meet's page can trigger `adapter_dump` repeatedly (gate it on a tray-set flag).
-  - A failed `meet_state` report is never retried.
 - **Manicule target.** Manicule should route `meet.google.com` links to cooee, reading
   `profiles.json` and launching
   `open -b au.lsjc.cooee 'cooee://join?profile=<name>&url=<link>'`. That change belongs in

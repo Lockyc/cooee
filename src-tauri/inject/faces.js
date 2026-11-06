@@ -108,6 +108,16 @@
     return { media: c, video: source };
   }
 
+  // Detach a tile's stream so a removed tile (or the canvas mode's hidden source) stops decoding.
+  function release(t) {
+    t.el.remove();
+    if (t.media.srcObject) t.media.srcObject = null;
+    if (t.video) {
+      t.video.pause();
+      t.video.srcObject = null;
+    }
+  }
+
   function render(model) {
     if (!popup || popup.closed || !ui) return;
     const { d, grid, chips, message } = ui;
@@ -119,14 +129,14 @@
     const keep = new Set(faces.map((p) => p.id));
     for (const [id, t] of tiles) {
       if (!keep.has(id)) {
-        t.el.remove();
+        release(t);
         tiles.delete(id);
       }
     }
     for (const p of faces) {
       let t = tiles.get(p.id);
       if (!t || t.stream !== p.stream) {
-        if (t) t.el.remove();
+        if (t) release(t);
         const el = d.createElement("div");
         el.className = "tile";
         const { media, video } = mediaFor(d, p.stream);
@@ -137,7 +147,12 @@
       }
       t.name.textContent = p.name;
       t.el.classList.toggle("speaking", p.speaking);
-      grid.append(t.el); // re-append keeps participant order
+    }
+    // Re-order only when the order changed: moving a <video> in the DOM can make WebKit tear
+    // down and rebuild its render layer (a visible flicker).
+    const order = faces.map((p) => tiles.get(p.id).el);
+    if (order.length !== grid.children.length || order.some((el, i) => grid.children[i] !== el)) {
+      grid.replaceChildren(...order);
     }
     const cols = Math.max(1, Math.ceil(Math.sqrt(faces.length)));
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
