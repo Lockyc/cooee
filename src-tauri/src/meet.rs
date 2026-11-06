@@ -65,6 +65,9 @@ pub fn must_ask_before_replacing(call: CallState, capture_active: bool) -> bool 
 #[derive(Default)]
 pub struct MeetState {
     inner: Mutex<Inner>,
+    /// Set by the tray's snapshot item; the adapter's dump is honoured only once per request,
+    /// so the page itself can't write files or pop Finder.
+    snapshot_requested: std::sync::atomic::AtomicBool,
 }
 
 #[derive(Default)]
@@ -77,6 +80,14 @@ struct Inner {
 }
 
 impl MeetState {
+    pub fn request_snapshot(&self) {
+        self.snapshot_requested
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    pub fn take_snapshot_request(&self) -> bool {
+        self.snapshot_requested
+            .swap(false, std::sync::atomic::Ordering::SeqCst)
+    }
     pub fn call(&self) -> CallState {
         self.inner.lock().unwrap().call
     }
@@ -349,5 +360,19 @@ mod tests {
         assert!(home
             .query_pairs()
             .any(|(k, v)| k == "continue" && v == "https://meet.google.com/"));
+    }
+}
+
+#[cfg(test)]
+mod snapshot_tests {
+    use super::*;
+
+    #[test]
+    fn a_snapshot_is_saved_only_when_the_tray_asked_once() {
+        let state = MeetState::default();
+        assert!(!state.take_snapshot_request(), "the page can't trigger it");
+        state.request_snapshot();
+        assert!(state.take_snapshot_request());
+        assert!(!state.take_snapshot_request(), "one save per request");
     }
 }

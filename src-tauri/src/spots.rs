@@ -129,9 +129,40 @@ fn current_rect(w: &tauri::WebviewWindow) -> Option<Rect> {
 }
 
 /// Put a newly opened faces window at Talk.
-pub fn place_at_talk(app: &AppHandle) {
-    if let (Some(w), Some(r)) = (faces_window(app), spot_rect(app, true)) {
-        place(&w, r);
+pub fn place_at_talk(app: &AppHandle, w: &tauri::WebviewWindow) {
+    if let Some(r) = spot_rect(app, true) {
+        place(w, r);
+    }
+}
+
+/// The tray's Faces Window items: (action name, label).
+pub const MENU_ACTIONS: [(&str, &str); 7] = [
+    ("talk", "Snap to Talk"),
+    ("aside", "Snap to Aside"),
+    ("cycle_size", "Cycle Size"),
+    ("toggle_faces", "Show/Hide Faces"),
+    ("toggle_meet", "Show/Hide Meet"),
+    ("save_talk", "Save as Talk"),
+    ("save_aside", "Save as Aside"),
+];
+
+fn action_named(name: &str) -> Option<Action> {
+    Some(match name {
+        "talk" => Action::Talk,
+        "aside" => Action::Aside,
+        "cycle_size" => Action::CycleSize,
+        "toggle_faces" => Action::ToggleFaces,
+        "toggle_meet" => Action::ToggleMeet,
+        "save_talk" => Action::SaveTalk,
+        "save_aside" => Action::SaveAside,
+        _ => return None,
+    })
+}
+
+/// Run a [`MENU_ACTIONS`] action by name.
+pub fn run_named(app: &AppHandle, name: &str) {
+    if let Some(a) = action_named(name) {
+        run(app, a);
     }
 }
 
@@ -349,5 +380,17 @@ mod tests {
                 h: 350.0
             }
         );
+    }
+}
+
+#[cfg(test)]
+mod menu_tests {
+    use super::*;
+
+    #[test]
+    fn every_menu_action_resolves() {
+        for (name, _) in MENU_ACTIONS {
+            assert!(action_named(name).is_some(), "{name}");
+        }
     }
 }

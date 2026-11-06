@@ -23,9 +23,13 @@ pub fn meet_state(app: AppHandle, in_call: bool, others: usize, adapter_ok: bool
     }
 }
 
-/// Write the adapter's layout snapshot to `<app data>/adapter-dump.json` and reveal it.
+/// Write the adapter's layout snapshot to `<app data>/adapter-dump.json` and reveal it — once per
+/// tray request; an unrequested call is ignored.
 #[tauri::command]
 pub fn adapter_dump(app: AppHandle, json: String) -> Result<(), String> {
+    if !app.state::<MeetState>().take_snapshot_request() {
+        return Ok(());
+    }
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let path = dir.join("adapter-dump.json");

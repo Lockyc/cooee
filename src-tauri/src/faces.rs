@@ -5,26 +5,51 @@
 use tauri::webview::{NewWindowFeatures, NewWindowResponse};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
-pub const FACES_LABEL: &str = "faces";
+const LABEL_PREFIX: &str = "faces-";
 const DEFAULT_SIZE: (f64, f64) = (560.0, 350.0);
 
-pub fn faces_window(app: &AppHandle) -> Option<WebviewWindow> {
-    app.get_webview_window(FACES_LABEL)
+/// A fresh label per popup: a destroyed window's label stays registered until its Destroyed
+/// event, so reusing one label would fail a quick re-open.
+fn next_label() -> String {
+    static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    format!(
+        "{LABEL_PREFIX}{}",
+        N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+    )
 }
 
-/// Materialize the Meet page's popup as the faces window.
+fn is_faces_label(label: &str) -> bool {
+    label.starts_with(LABEL_PREFIX)
+}
+
+fn label_number(label: &str) -> Option<usize> {
+    label.strip_prefix(LABEL_PREFIX)?.parse().ok()
+}
+
+/// The current faces window: the newest, since a destroyed one stays registered until its
+/// Destroyed event.
+pub fn faces_window(app: &AppHandle) -> Option<WebviewWindow> {
+    app.webview_windows()
+        .into_iter()
+        .filter_map(|(label, w)| label_number(&label).map(|n| (n, w)))
+        .max_by_key(|(n, _)| *n)
+        .map(|(_, w)| w)
+}
+
+/// Materialize the Meet page's popup as the faces window. A faces window still registered is a
+/// stale one (its page lost the popup), so it goes.
 pub fn create(app: &AppHandle, features: NewWindowFeatures) -> NewWindowResponse<tauri::Wry> {
-    if let Some(w) = faces_window(app) {
-        let _ = w.destroy();
-    }
+    close(app);
     let built = WebviewWindowBuilder::new(
         app,
-        FACES_LABEL,
+        next_label(),
         WebviewUrl::External("about:blank".parse().unwrap()),
     )
     .window_features(features)
     .title("cooee")
     .inner_size(DEFAULT_SIZE.0, DEFAULT_SIZE.1)
+    // Joining shouldn't take keyboard focus from Meet (its ⌘D/⌘E).
+    .focused(false)
     .always_on_top(true)
     .visible_on_all_workspaces(true)
     .skip_taskbar(true)
@@ -39,7 +64,7 @@ pub fn create(app: &AppHandle, features: NewWindowFeatures) -> NewWindowResponse
                     let _ = w.hide();
                 }
             });
-            crate::spots::place_at_talk(app);
+            crate::spots::place_at_talk(app, &window);
             NewWindowResponse::Create { window }
         }
         Err(e) => {
@@ -51,7 +76,26 @@ pub fn create(app: &AppHandle, features: NewWindowFeatures) -> NewWindowResponse
 
 /// The call ended (or the Meet window went away): the faces window goes with it.
 pub fn close(app: &AppHandle) {
-    if let Some(w) = faces_window(app) {
-        let _ = w.destroy();
+    for (label, w) in app.webview_windows() {
+        if is_faces_label(&label) {
+            let _ = w.destroy();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn each_popup_gets_a_fresh_label() {
+        // A destroyed window's label stays registered until its Destroyed event, so reusing one
+        // label made a quick re-open fail.
+        let a = next_label();
+        let b = next_label();
+        assert_ne!(a, b);
+        assert!(is_faces_label(&a) && is_faces_label(&b));
+        assert!(!is_faces_label("meet"));
+        assert!(label_number(&b) > label_number(&a), "newest wins");
     }
 }

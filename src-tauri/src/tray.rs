@@ -14,6 +14,7 @@ const JOIN: &str = "join-clipboard";
 const OPEN: &str = "open:"; // + profile name
 const JOIN_IN: &str = "join-in:"; // + profile name
 const SNAPSHOT: &str = "snapshot";
+const FACES: &str = "faces:"; // + spots action name
 const QUIT: &str = "quit";
 
 pub fn install(app: &AppHandle) -> tauri::Result<()> {
@@ -56,6 +57,18 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         )?)?;
     }
     menu.append(&sep()?)?;
+    // The hotkeys' actions, for when a shortcut clashes or is forgotten.
+    let faces = Submenu::with_id(app, "faces", "Faces Window", true)?;
+    for (name, label) in crate::spots::MENU_ACTIONS {
+        faces.append(&MenuItem::with_id(
+            app,
+            format!("{FACES}{name}"),
+            label,
+            true,
+            None::<&str>,
+        )?)?;
+    }
+    menu.append(&faces)?;
     let diagnostics = Submenu::with_id(app, "diagnostics", "Diagnostics", true)?;
     diagnostics.append(&MenuItem::with_id(
         app,
@@ -94,13 +107,29 @@ fn on_menu(app: &AppHandle, id: &str) {
         if let Some(p) = cfg.profiles.iter().find(|p| p.name == name) {
             meet::open_meet(app, p, &Url::parse(HOME_URL).unwrap());
         }
+    } else if let Some(action) = id.strip_prefix(FACES) {
+        crate::spots::run_named(app, action);
     } else if id == SNAPSHOT {
         match meet::meet_window(app) {
             Some(w) => {
+                app.state::<meet::MeetState>().request_snapshot();
                 let _ = w.eval("window.__cooee && window.__cooee.dump()");
             }
             None => tell(app, "Open a Meet call first, then save the snapshot."),
         }
+    }
+}
+
+fn set_clipboard(text: &str) {
+    use std::io::Write;
+    if let Ok(mut child) = std::process::Command::new("pbcopy")
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+    {
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(text.as_bytes());
+        }
+        let _ = child.wait();
     }
 }
 
@@ -126,13 +155,39 @@ fn join_from_clipboard(app: &AppHandle, cfg: &Config, forced: Option<&Profile>) 
     }
 }
 
+/// The dialog's cancel button: "Cancel", unless a profile has that name.
+fn cancel_label(names: &[String]) -> String {
+    ["Cancel", "Don't Join", "Not Now"]
+        .into_iter()
+        .find(|l| !names.iter().any(|n| n == l))
+        .unwrap_or("Cancel")
+        .to_string()
+}
+
+/// The profile a two-profile dialog's answer picks; the cancel button picks none.
+fn chosen_profile(res: MessageDialogResult, names: &[String]) -> Option<String> {
+    match res {
+        MessageDialogResult::Custom(label) => names.iter().find(|n| **n == label).cloned(),
+        MessageDialogResult::Yes => names.first().cloned(),
+        MessageDialogResult::No => names.get(1).cloned(),
+        _ => None,
+    }
+}
+
 /// Ask which profile joins `url` (a link whose account matched no single profile).
 pub fn ask_profile(app: &AppHandle, cfg: &Config, url: Url) {
     let names: Vec<String> = cfg.profiles.iter().map(|p| p.name.clone()).collect();
     let buttons = match names.as_slice() {
-        [a, b] => MessageDialogButtons::YesNoCancelCustom(a.clone(), b.clone(), "Cancel".into()),
+        [a, b] => {
+            MessageDialogButtons::YesNoCancelCustom(a.clone(), b.clone(), cancel_label(&names))
+        }
         _ => {
-            tell(app, "Pick a profile under Join Clipboard Link In.");
+            // A dialog holds at most two choices: hand the link to the menu's per-profile join.
+            set_clipboard(url.as_str());
+            tell(
+                app,
+                "The link is on the clipboard: pick a profile under Join Clipboard Link In.",
+            );
             return;
         }
     };
@@ -142,13 +197,9 @@ pub fn ask_profile(app: &AppHandle, cfg: &Config, url: Url) {
         .title("cooee")
         .buttons(buttons)
         .show_with_result(move |res| {
-            let chosen = match res {
-                MessageDialogResult::Custom(label) => Some(label),
-                MessageDialogResult::Yes => names.first().cloned(),
-                MessageDialogResult::No => names.get(1).cloned(),
-                _ => None,
+            let Some(name) = chosen_profile(res, &names) else {
+                return;
             };
-            let Some(name) = chosen else { return };
             let app3 = app2.clone();
             let _ = app2.run_on_main_thread(move || {
                 let cfg = app3.state::<Config>();
@@ -161,4 +212,38 @@ pub fn ask_profile(app: &AppHandle, cfg: &Config, url: Url) {
 
 fn tell(app: &AppHandle, message: &str) {
     app.dialog().message(message).title("cooee").show(|_| {});
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn names(a: &str, b: &str) -> Vec<String> {
+        vec![a.into(), b.into()]
+    }
+
+    #[test]
+    fn cancel_button_never_shares_a_profile_name() {
+        assert_eq!(cancel_label(&names("work", "home")), "Cancel");
+        assert_ne!(cancel_label(&names("Cancel", "home")), "Cancel");
+    }
+
+    #[test]
+    fn a_profile_named_cancel_is_not_joined_by_cancelling() {
+        let n = names("Cancel", "home");
+        let cancel = cancel_label(&n);
+        assert_eq!(
+            chosen_profile(MessageDialogResult::Custom(cancel), &n),
+            None
+        );
+        assert_eq!(
+            chosen_profile(MessageDialogResult::Custom("Cancel".into()), &n).as_deref(),
+            Some("Cancel")
+        );
+        assert_eq!(
+            chosen_profile(MessageDialogResult::Custom("home".into()), &n).as_deref(),
+            Some("home")
+        );
+        assert_eq!(chosen_profile(MessageDialogResult::Cancel, &n), None);
+    }
 }
