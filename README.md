@@ -14,8 +14,8 @@ people on camera. Everyone else is a name chip along the bottom edge.
 
 ## Status
 
-Early, not yet released: built and unit-tested, not yet proven in a live call. Reading Meet's
-call layout is the part most likely to need adjusting (see Diagnostics below).
+Early, not yet released: working in live calls. Reading Meet's call layout is the part most
+likely to need adjusting (see Diagnostics below).
 
 ## What it does
 
