@@ -12,7 +12,6 @@
 #                   (clone if absent, git pull if present) and builds from it.
 #
 # Never relaunches the app (the caller decides) and never depends on `just`.
-# For guided setup with prerequisite installation, use /cooee:install in Claude Code.
 set -euo pipefail
 
 if [[ "$(uname)" != "Darwin" ]]; then
@@ -23,8 +22,8 @@ fi
 REPO_URL="https://github.com/lockyc/cooee"
 INSTALL_DIR="$HOME/.cooee"
 
-# 1. Hard prerequisites. /cooee:install offers to install these; the bare script
-#    only refuses with a hint (except the Tauri CLI, which it backstops below).
+# 1. Hard prerequisites. Refused with a hint, never installed (except the Tauri
+#    CLI, which is backstopped below).
 missing=0
 for c in git cargo; do
   if ! command -v "$c" >/dev/null 2>&1; then

@@ -50,10 +50,6 @@ likely to need adjusting (see Diagnostics below).
 
 ## Install
 
-**Guided (Claude Code):** run `/cooee:install`. It checks prerequisites (offering to install any
-that are missing), builds cooee from source, installs it, and seeds your config.
-
-**Manual:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lockyc/cooee/main/install.sh | bash
