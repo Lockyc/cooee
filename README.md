@@ -50,7 +50,6 @@ likely to need adjusting (see Diagnostics below).
 
 ## Install
 
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lockyc/cooee/main/install.sh | bash
 ```
