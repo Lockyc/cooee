@@ -25,7 +25,7 @@ likely to need adjusting (see Diagnostics below).
   carrying `authuser=<email>` opens in the profile with that account. Otherwise cooee asks which
   profile to use.
 - **Faces window.** It opens when you join a call and closes when you leave. It shows the other
-  participants with their cameras on, re-flowed to fit the window, with the speaker outlined.
+  participants with their cameras on, re-flowed to fit the window.
   Camera-off people are name chips. Before anyone else arrives it says **Waiting for others**,
   and it pulses when someone joins. Hovering shows Mute, Camera, Leave and the spot buttons.
 - **Spots.** **Talk** is centred under the top edge of your largest screen, where a top-mounted
