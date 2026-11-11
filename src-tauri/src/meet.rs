@@ -20,10 +20,11 @@ pub const HOME_URL: &str =
 /// The scripts injected into every Meet page, in order: the adapter (the only code that knows
 /// Meet's DOM), the popup lifecycle, then one script per popup, each consuming the adapter's
 /// neutral model only.
-const INJECTED_JS: [&str; 3] = [
+const INJECTED_JS: [&str; 4] = [
     include_str!("../inject/meet-adapter.js"),
     include_str!("../inject/popup.js"),
     include_str!("../inject/faces.js"),
+    include_str!("../inject/controls.js"),
 ];
 
 #[derive(Debug, PartialEq)]

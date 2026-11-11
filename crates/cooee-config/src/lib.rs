@@ -58,6 +58,7 @@ pub struct Hotkeys {
     pub aside: String,
     pub cycle_size: String,
     pub toggle_faces: String,
+    pub toggle_controls: String,
     pub toggle_meet: String,
     pub save_talk: String,
     pub save_aside: String,
@@ -70,6 +71,7 @@ impl Default for Hotkeys {
             aside: "Ctrl+Alt+Cmd+A".into(),
             cycle_size: "Ctrl+Alt+Cmd+S".into(),
             toggle_faces: "Ctrl+Alt+Cmd+F".into(),
+            toggle_controls: "Ctrl+Alt+Cmd+C".into(),
             toggle_meet: "Ctrl+Alt+Cmd+M".into(),
             save_talk: "Ctrl+Alt+Cmd+Shift+T".into(),
             save_aside: "Ctrl+Alt+Cmd+Shift+A".into(),
@@ -247,6 +249,14 @@ mod tests {
         let cfg = parse_and_validate("[hotkeys]\ntalk = \"Cmd+F1\"\n").unwrap();
         assert_eq!(cfg.hotkeys.talk, "Cmd+F1");
         assert_eq!(cfg.hotkeys.aside, "Ctrl+Alt+Cmd+A");
+    }
+
+    #[test]
+    fn controls_window_has_a_toggle_hotkey() {
+        let cfg = parse_and_validate("").unwrap();
+        assert_eq!(cfg.hotkeys.toggle_controls, "Ctrl+Alt+Cmd+C");
+        let cfg = parse_and_validate("[hotkeys]\ntoggle_controls = \"Cmd+F2\"\n").unwrap();
+        assert_eq!(cfg.hotkeys.toggle_controls, "Cmd+F2");
     }
 
     #[test]

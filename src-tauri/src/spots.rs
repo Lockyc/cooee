@@ -27,6 +27,7 @@ enum Action {
     Aside,
     CycleSize,
     ToggleFaces,
+    ToggleControls,
     ToggleMeet,
     SaveTalk,
     SaveAside,
@@ -198,12 +199,13 @@ fn toggle_popup(app: &AppHandle, kind: Popup) {
     }
 }
 
-/// The tray's Faces Window items: (action name, label).
-pub const MENU_ACTIONS: [(&str, &str); 7] = [
+/// The tray's Windows items: (action name, label).
+pub const MENU_ACTIONS: [(&str, &str); 8] = [
     ("talk", "Snap to Talk"),
     ("aside", "Snap to Aside"),
     ("cycle_size", "Cycle Size"),
     ("toggle_faces", "Show/Hide Faces"),
+    ("toggle_controls", "Show/Hide Controls"),
     ("toggle_meet", "Show/Hide Meet"),
     ("save_talk", "Save as Talk"),
     ("save_aside", "Save as Aside"),
@@ -215,6 +217,7 @@ fn action_named(name: &str) -> Option<Action> {
         "aside" => Action::Aside,
         "cycle_size" => Action::CycleSize,
         "toggle_faces" => Action::ToggleFaces,
+        "toggle_controls" => Action::ToggleControls,
         "toggle_meet" => Action::ToggleMeet,
         "save_talk" => Action::SaveTalk,
         "save_aside" => Action::SaveAside,
@@ -257,6 +260,7 @@ fn run(app: &AppHandle, action: Action) {
             }
         }
         Action::ToggleFaces => toggle_popup(app, Popup::Faces),
+        Action::ToggleControls => toggle_popup(app, Popup::Controls),
         Action::ToggleMeet => match meet::meet_window(app) {
             Some(m) if m.is_visible().unwrap_or(false) => {
                 let _ = m.hide();
@@ -301,6 +305,11 @@ pub fn register_hotkeys(app: &AppHandle) -> tauri::Result<()> {
         (Action::Aside, "aside", hk.aside),
         (Action::CycleSize, "cycle_size", hk.cycle_size),
         (Action::ToggleFaces, "toggle_faces", hk.toggle_faces),
+        (
+            Action::ToggleControls,
+            "toggle_controls",
+            hk.toggle_controls,
+        ),
         (Action::ToggleMeet, "toggle_meet", hk.toggle_meet),
         (Action::SaveTalk, "save_talk", hk.save_talk),
         (Action::SaveAside, "save_aside", hk.save_aside),
@@ -422,5 +431,14 @@ mod menu_tests {
         for (name, _) in MENU_ACTIONS {
             assert!(action_named(name).is_some(), "{name}");
         }
+    }
+
+    #[test]
+    fn the_controls_window_toggles_from_the_menu() {
+        assert!(MENU_ACTIONS.contains(&("toggle_controls", "Show/Hide Controls")));
+        assert_eq!(
+            action_named("toggle_controls"),
+            Some(Action::ToggleControls)
+        );
     }
 }
