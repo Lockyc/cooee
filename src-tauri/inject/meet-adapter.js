@@ -289,7 +289,7 @@
             model: { ...model, participants, self: { ...self, preview: !!selfStream }, presentation },
             tiles,
             buttons,
-            faces: window.__cooeeFaces?.diag?.() ?? null,
+            popups: window.__cooeePopups?.diag?.() ?? null,
           },
           null,
           2

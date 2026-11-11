@@ -1,16 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "meet",
-  "description": "cooee's scripts injected into meet.google.com: the adapter reports call state and saves layout snapshots, and the faces window's hover buttons move it between spots. Nothing on any other origin may call these.",
+  "description": "cooee's scripts injected into meet.google.com: the adapter reports call state and saves layout snapshots. Nothing on any other origin may call these.",
   "windows": ["meet"],
   "remote": { "urls": ["https://meet.google.com/*"] },
   "permissions": [
     "allow-meet-state",
-    "allow-adapter-dump",
-    "allow-snap-talk",
-    "allow-snap-aside",
-    "allow-cycle-faces-size",
-    "allow-save-talk",
-    "allow-save-aside"
+    "allow-adapter-dump"
   ]
 }

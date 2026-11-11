@@ -17,10 +17,14 @@ pub const MEET_LABEL: &str = "meet";
 pub const HOME_URL: &str =
     "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmeet.google.com%2F";
 
-/// The injected adapter: the only code that knows Meet's DOM.
-const ADAPTER_JS: &str = include_str!("../inject/meet-adapter.js");
-/// The faces UI: consumes the adapter's neutral model only.
-const FACES_JS: &str = include_str!("../inject/faces.js");
+/// The scripts injected into every Meet page, in order: the adapter (the only code that knows
+/// Meet's DOM), the popup lifecycle, then one script per popup, each consuming the adapter's
+/// neutral model only.
+const INJECTED_JS: [&str; 3] = [
+    include_str!("../inject/meet-adapter.js"),
+    include_str!("../inject/popup.js"),
+    include_str!("../inject/faces.js"),
+];
 
 #[derive(Debug, PartialEq)]
 pub enum NavRoute {
@@ -186,13 +190,15 @@ pub fn go_home(app: &AppHandle) {
 fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
     let nav_app = app.clone();
     let popup_app = app.clone();
-    let w = WebviewWindowBuilder::new(app, MEET_LABEL, WebviewUrl::External(url.clone()))
+    let mut builder = WebviewWindowBuilder::new(app, MEET_LABEL, WebviewUrl::External(url.clone()))
         .title(format!("Meet — {}", profile.name))
         .inner_size(1200.0, 820.0)
         .user_agent(shell_core::web::desktop_ua())
-        .data_store_identifier(shell_core::web::session::data_store_id(&profile.name))
-        .initialization_script(ADAPTER_JS)
-        .initialization_script(FACES_JS)
+        .data_store_identifier(shell_core::web::session::data_store_id(&profile.name));
+    for js in INJECTED_JS {
+        builder = builder.initialization_script(js);
+    }
+    let w = builder
         .on_navigation(move |url| match route_navigation(url) {
             NavRoute::Stay => true,
             NavRoute::Redirect(to) => {

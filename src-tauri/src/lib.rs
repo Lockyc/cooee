@@ -28,11 +28,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             bridge::meet_state,
             bridge::adapter_dump,
-            spots::snap_talk,
-            spots::snap_aside,
-            spots::cycle_faces_size,
-            spots::save_talk,
-            spots::save_aside,
         ])
         .setup(move |app| {
             #[cfg(target_os = "macos")]

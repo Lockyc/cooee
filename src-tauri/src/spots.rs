@@ -1,5 +1,5 @@
-//! Where popups go: the faces window's spots and the global hotkeys + hover-button commands that
-//! move it, and the controls and share windows' last places. Geometry is in logical points, the
+//! Where popups go: the faces window's spots, the global hotkeys and tray actions that move and
+//! toggle popups, and the controls and share windows' last places. Geometry is in logical points, the
 //! one coordinate space macOS screens share; each monitor's physical rect is divided by its own
 //! scale. A spot is the window's outer origin plus its inner size, matching what
 //! `set_position`/`set_size` apply. Moving or resizing the faces window by hand writes nothing
@@ -176,6 +176,28 @@ pub fn remember_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
     store_spots(app, &spots);
 }
 
+/// Show a hidden popup, hide a shown one, or — when its window is gone mid-call — have the page
+/// open it again.
+fn toggle_popup(app: &AppHandle, kind: Popup) {
+    match popups::window(app, kind) {
+        Some(w) if w.is_visible().unwrap_or(false) => {
+            let _ = w.hide();
+        }
+        Some(w) => {
+            let _ = w.show();
+        }
+        None if app.state::<MeetState>().call().in_call => {
+            if let Some(m) = meet::meet_window(app) {
+                let _ = m.eval(format!(
+                    "window.__cooeePopups && window.__cooeePopups.open('{}')",
+                    kind.name()
+                ));
+            }
+        }
+        None => {}
+    }
+}
+
 /// The tray's Faces Window items: (action name, label).
 pub const MENU_ACTIONS: [(&str, &str); 7] = [
     ("talk", "Snap to Talk"),
@@ -234,20 +256,7 @@ fn run(app: &AppHandle, action: Action) {
                 store_spots(app, &spots);
             }
         }
-        Action::ToggleFaces => match &faces {
-            Some(w) if w.is_visible().unwrap_or(false) => {
-                let _ = w.hide();
-            }
-            Some(w) => {
-                let _ = w.show();
-            }
-            None if app.state::<MeetState>().call().in_call => {
-                if let Some(m) = meet::meet_window(app) {
-                    let _ = m.eval("window.__cooeeFaces && window.__cooeeFaces.open()");
-                }
-            }
-            None => {}
-        },
+        Action::ToggleFaces => toggle_popup(app, Popup::Faces),
         Action::ToggleMeet => match meet::meet_window(app) {
             Some(m) if m.is_visible().unwrap_or(false) => {
                 let _ = m.hide();
@@ -323,26 +332,6 @@ pub fn register_hotkeys(app: &AppHandle) -> tauri::Result<()> {
             .show(|_| {});
     }
     Ok(())
-}
-
-macro_rules! commands {
-    ($($name:ident => $action:ident),* $(,)?) => {
-        $(
-            #[tauri::command]
-            pub fn $name(app: AppHandle) {
-                let a = app.clone();
-                let _ = app.run_on_main_thread(move || run(&a, Action::$action));
-            }
-        )*
-    };
-}
-
-commands! {
-    snap_talk => Talk,
-    snap_aside => Aside,
-    cycle_faces_size => CycleSize,
-    save_talk => SaveTalk,
-    save_aside => SaveAside,
 }
 
 #[cfg(test)]
