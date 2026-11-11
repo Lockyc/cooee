@@ -21,7 +21,7 @@
     // A tile whose label or text says it is a presentation.
     presentation: /present/i,
     // Your own presentation's tile, which never opens the share window.
-    selfPresentation: /you('re| are) presenting/i,
+    selfPresentation: /you(['’]re| are) presenting/i,
     // A mic/camera button labelled "Turn on …" means that device is off.
     deviceOff: /^turn on/i,
     // Self: Meet marks the local tile, the People panel's row says "(You)", only your own tile
@@ -51,6 +51,22 @@
     };
   }
   const capturing = () => [...localTracks].some((t) => t.readyState === "live");
+
+  // Your own screen-share tracks, captured the same way: a presentation tile playing one is yours
+  // whatever Meet's DOM says, so your share can never open the share window.
+  const displayTracks = new Set();
+  if (md && md.getDisplayMedia) {
+    const gdm = md.getDisplayMedia.bind(md);
+    md.getDisplayMedia = async (constraints) => {
+      const stream = await gdm(constraints);
+      for (const t of stream.getTracks()) {
+        displayTracks.add(t);
+        t.addEventListener("ended", () => displayTracks.delete(t));
+      }
+      return stream;
+    };
+  }
+  const isOwnShare = (stream) => !!stream?.getTracks?.().some((t) => displayTracks.has(t));
 
   // Always a promise, so a caller can retry on failure.
   const ipc = (cmd, args) => {
@@ -169,7 +185,7 @@
   // Another participant's screen share; never your own.
   function readPresentation(participants) {
     const p = participants.find(
-      (p) => p.isPresentation && !p.isSelf && !p.isOwnPresentation && p.stream
+      (p) => p.isPresentation && !p.isSelf && !p.isOwnPresentation && p.stream && !isOwnShare(p.stream)
     );
     return p ? { id: p.id, name: p.name, stream: p.stream } : null;
   }
