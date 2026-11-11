@@ -14,8 +14,8 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use cooee_config::spots::{clamp_to_screens, cycle_size, default_aside, default_talk, Rect, Spots};
 use cooee_config::Config;
 
-use crate::faces::faces_window;
 use crate::meet::{self, MeetState, HOME_URL};
+use crate::popups::{self, Popup};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Action {
@@ -128,12 +128,19 @@ fn current_rect(w: &tauri::WebviewWindow) -> Option<Rect> {
     ))
 }
 
-/// Put a newly opened faces window at Talk.
-pub fn place_at_talk(app: &AppHandle, w: &tauri::WebviewWindow) {
-    if let Some(r) = spot_rect(app, true) {
+/// Size and place a newly opened popup: the faces window at Talk.
+pub fn place_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
+    let r = match kind {
+        Popup::Faces => spot_rect(app, true),
+        Popup::Controls | Popup::Share => None,
+    };
+    if let Some(r) = r {
         place(w, r);
     }
 }
+
+/// A popup was moved or resized by hand.
+pub fn remember_popup(_app: &AppHandle, _w: &tauri::WebviewWindow, _kind: Popup) {}
 
 /// The tray's Faces Window items: (action name, label).
 pub const MENU_ACTIONS: [(&str, &str); 7] = [
@@ -167,7 +174,7 @@ pub fn run_named(app: &AppHandle, name: &str) {
 }
 
 fn run(app: &AppHandle, action: Action) {
-    let faces = faces_window(app);
+    let faces = popups::window(app, Popup::Faces);
     match action {
         Action::Talk | Action::Aside => {
             if let (Some(w), Some(r)) = (&faces, spot_rect(app, action == Action::Talk)) {

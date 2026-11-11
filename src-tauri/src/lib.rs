@@ -1,7 +1,7 @@
 mod bridge;
 mod deeplink;
-mod faces;
 mod meet;
+mod popups;
 mod spots;
 mod tray;
 

@@ -46,6 +46,8 @@ pub struct CallState {
     pub adapter_ok: bool,
     /// The page holds a live camera or mic track — read from getUserMedia, not Meet's DOM.
     pub capturing: bool,
+    /// Another participant is presenting (your own share doesn't count).
+    pub sharing: bool,
 }
 
 impl CallState {
@@ -205,8 +207,11 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
         })
         .on_new_window(move |url, features| {
             if url.host_str().is_none() {
-                // faces.js's `window.open("about:blank")`: the faces window.
-                return crate::faces::create(&popup_app, features);
+                // popup.js's `window.open("about:blank#<kind>")`: one of cooee's popups.
+                return match crate::popups::Popup::from_url(&url) {
+                    Some(kind) => crate::popups::create(&popup_app, kind, features),
+                    None => NewWindowResponse::Deny,
+                };
             }
             shell_core::web::escape::escape_to_default_browser(url.as_str());
             NewWindowResponse::Deny
@@ -215,7 +220,7 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
             if payload.event() == PageLoadEvent::Started {
                 let app = w.app_handle().clone();
                 let prev = app.state::<MeetState>().swap_call(CallState::default());
-                crate::faces::close(&app);
+                crate::popups::close_all(&app);
                 // Leaving a call by navigating away (Meet's "you left" page): back to home.
                 if CallState::left(prev, CallState::default()) {
                     let a = app.clone();
@@ -231,7 +236,7 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
     w.on_window_event(move |e| {
         if let tauri::WindowEvent::Destroyed = e {
             let pending = app.state::<MeetState>().on_destroyed();
-            crate::faces::close(&app);
+            crate::popups::close_all(&app);
             if let Some((profile, url)) = pending {
                 let app2 = app.clone();
                 let _ = app.run_on_main_thread(move || open_new(&app2, &profile, &url));
@@ -329,6 +334,7 @@ mod tests {
             others: 2,
             adapter_ok: true,
             capturing: true,
+            sharing: true,
         });
         state.set_pending(profile("home"), u(HOME_URL));
         let pending = state.on_destroyed().expect("pending open");

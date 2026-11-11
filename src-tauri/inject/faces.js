@@ -192,7 +192,7 @@
     if (popup && !popup.closed) return;
     // An explicit URL: WebKit reports `window.open("")` as an empty string, which Tauri can't
     // parse and denies before cooee's on_new_window sees it.
-    popup = window.open("about:blank", "cooee-faces", "width=560,height=350");
+    popup = window.open("about:blank#faces", "cooee-faces", "width=560,height=350");
     if (!popup) return;
     ensureBuilt();
   }
