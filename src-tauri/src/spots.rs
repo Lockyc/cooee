@@ -14,7 +14,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 use cooee_config::spots::{
     clamp_to_screens, cycle_size, default_aside, default_controls, default_share, default_talk,
-    Rect, Spots,
+    moved_by_hand, Rect, Spots,
 };
 use cooee_config::Config;
 
@@ -155,12 +155,22 @@ pub fn place_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
         }
     };
     if let Some(r) = r {
+        app.state::<Placed>()
+            .0
+            .lock()
+            .unwrap()
+            .insert(w.label().to_string(), r);
         place(w, r);
     }
 }
 
-/// The controls or share window moved or resized: it reopens there. The faces window keeps its
-/// explicit Save Talk / Save Aside.
+/// Where cooee last placed each popup window (by label), so the Moved/Resized events that
+/// placement fires aren't remembered as the user's choice.
+#[derive(Default)]
+pub struct Placed(Mutex<HashMap<String, Rect>>);
+
+/// The controls or share window moved or resized by hand: it reopens there. The faces window keeps
+/// its explicit Save Talk / Save Aside.
 pub fn remember_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
     if kind == Popup::Faces {
         return;
@@ -168,6 +178,16 @@ pub fn remember_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
     let Some(r) = current_rect(w) else {
         return;
     };
+    let placed = app
+        .state::<Placed>()
+        .0
+        .lock()
+        .unwrap()
+        .get(w.label())
+        .copied();
+    if !moved_by_hand(r, placed) {
+        return;
+    }
     let mut spots = load_spots(app);
     if kind == Popup::Controls {
         spots.controls = Some(r);

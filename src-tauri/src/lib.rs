@@ -25,6 +25,7 @@ pub fn run() {
         .manage(config)
         .manage(meet::MeetState::default())
         .manage(spots::Hotkeys::default())
+        .manage(spots::Placed::default())
         .invoke_handler(tauri::generate_handler![
             bridge::meet_state,
             bridge::adapter_dump,

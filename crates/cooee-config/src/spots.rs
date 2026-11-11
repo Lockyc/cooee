@@ -59,6 +59,18 @@ pub fn default_controls(screen: Rect) -> Rect {
     }
 }
 
+/// Whether a popup's `current` rect is a move or resize by hand, not the echo of cooee placing
+/// it at `placed` (the Moved/Resized events `set_position`/`set_size` fire, which round through
+/// physical pixels). Placement may have clamped a saved spot onto a smaller screen set; writing
+/// that back would lose the spot the user chose.
+pub fn moved_by_hand(current: Rect, placed: Option<Rect>) -> bool {
+    let Some(p) = placed else {
+        return true;
+    };
+    let near = |a: f64, b: f64| (a - b).abs() < 1.0;
+    !(near(current.x, p.x) && near(current.y, p.y) && near(current.w, p.w) && near(current.h, p.h))
+}
+
 /// The share window's default: centred on `screen`.
 pub fn default_share(screen: Rect) -> Rect {
     let (w, h) = SHARE_SIZE;
@@ -365,6 +377,27 @@ mod tests {
         w: 1440.0,
         h: 900.0,
     };
+
+    #[test]
+    fn placing_a_popup_is_not_a_move_to_remember() {
+        let placed = Rect {
+            x: 24.0,
+            y: 776.0,
+            w: 340.0,
+            h: 100.0,
+        };
+        // The Moved/Resized events cooee's own placement fires (rounded through physical pixels).
+        assert!(!moved_by_hand(
+            Rect {
+                x: 24.4,
+                y: 775.6,
+                ..placed
+            },
+            Some(placed)
+        ));
+        assert!(moved_by_hand(Rect { x: 300.0, ..placed }, Some(placed)));
+        assert!(moved_by_hand(placed, None), "never placed: a real move");
+    }
 
     #[test]
     fn controls_default_is_bottom_left_inset() {
