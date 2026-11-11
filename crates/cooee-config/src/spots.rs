@@ -1,11 +1,12 @@
-//! Faces-window spots (Talk, Aside) and sizes: pure geometry in logical points, top-left origin
+//! Popup spots — the faces window's Talk and Aside, and where the controls and share windows
+//! were last left — and sizes: pure geometry in logical points, top-left origin
 //! (Tauri's screen coordinate space).
 
 use serde::{Deserialize, Serialize};
 
 use crate::Size;
 
-/// The gap between the faces window and the screen edge it is placed against.
+/// The gap between a popup and the screen edge it is placed against.
 pub const EDGE_INSET: f64 = 24.0;
 const SPOTS_VERSION: u32 = 1;
 
@@ -34,6 +35,39 @@ impl Rect {
 pub struct Spots {
     pub talk: Option<Rect>,
     pub aside: Option<Rect>,
+    /// Where the controls window was last left — written whenever it moves or resizes.
+    #[serde(default)]
+    pub controls: Option<Rect>,
+    /// Where the share window was last left — written whenever it moves or resizes.
+    #[serde(default)]
+    pub share: Option<Rect>,
+}
+
+/// The controls window's size: a 16:9 preview beside three buttons.
+const CONTROLS_SIZE: (f64, f64) = (340.0, 100.0);
+/// The share window's first size; after that, whatever you made it.
+const SHARE_SIZE: (f64, f64) = (960.0, 600.0);
+
+/// The controls window's default: the bottom-left corner of `screen`, clear of Aside.
+pub fn default_controls(screen: Rect) -> Rect {
+    let (w, h) = CONTROLS_SIZE;
+    Rect {
+        x: screen.x + EDGE_INSET,
+        y: screen.y + screen.h - h - EDGE_INSET,
+        w,
+        h,
+    }
+}
+
+/// The share window's default: centred on `screen`.
+pub fn default_share(screen: Rect) -> Rect {
+    let (w, h) = SHARE_SIZE;
+    Rect {
+        x: screen.x + (screen.w - w) / 2.0,
+        y: screen.y + (screen.h - h) / 2.0,
+        w,
+        h,
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -318,10 +352,52 @@ mod tests {
                 h: 4.0,
             }),
             aside: None,
+            ..Spots::default()
         };
         let json = s.to_json();
         assert!(json.contains("\"version\":1"), "{json}");
         assert_eq!(Spots::from_json(&json), s);
+    }
+
+    const LAPTOP: Rect = Rect {
+        x: 0.0,
+        y: 0.0,
+        w: 1440.0,
+        h: 900.0,
+    };
+
+    #[test]
+    fn controls_default_is_bottom_left_inset() {
+        assert_eq!(
+            default_controls(LAPTOP),
+            Rect {
+                x: 24.0,
+                y: 900.0 - 24.0 - 100.0,
+                w: 340.0,
+                h: 100.0
+            }
+        );
+    }
+
+    #[test]
+    fn share_default_is_centred() {
+        assert_eq!(
+            default_share(LAPTOP),
+            Rect {
+                x: 240.0,
+                y: 150.0,
+                w: 960.0,
+                h: 600.0
+            }
+        );
+    }
+
+    #[test]
+    fn a_v1_file_without_popup_spots_still_loads() {
+        let s = Spots::from_json(r#"{"version":1,"talk":{"x":1,"y":2,"w":3,"h":4},"aside":null}"#);
+        assert_eq!(s.talk.map(|r| r.w), Some(3.0));
+        assert_eq!(s.controls, None);
+        assert_eq!(s.share, None);
     }
 
     #[test]

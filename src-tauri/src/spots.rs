@@ -1,8 +1,9 @@
-//! Moving the faces window between spots, and the global hotkeys + hover-button commands that do
-//! it. Geometry is in logical points, the one coordinate space macOS screens share; each
-//! monitor's physical rect is divided by its own scale. A spot is the window's outer origin plus
-//! its inner size, matching what `set_position`/`set_size` apply. Moving or resizing by hand
-//! writes nothing: only Save does.
+//! Where popups go: the faces window's spots and the global hotkeys + hover-button commands that
+//! move it, and the controls and share windows' last places. Geometry is in logical points, the
+//! one coordinate space macOS screens share; each monitor's physical rect is divided by its own
+//! scale. A spot is the window's outer origin plus its inner size, matching what
+//! `set_position`/`set_size` apply. Moving or resizing the faces window by hand writes nothing
+//! (only Save does); moving the controls or share window is remembered.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -11,7 +12,10 @@ use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, PhysicalPosition, 
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
-use cooee_config::spots::{clamp_to_screens, cycle_size, default_aside, default_talk, Rect, Spots};
+use cooee_config::spots::{
+    clamp_to_screens, cycle_size, default_aside, default_controls, default_share, default_talk,
+    Rect, Spots,
+};
 use cooee_config::Config;
 
 use crate::meet::{self, MeetState, HOME_URL};
@@ -128,19 +132,49 @@ fn current_rect(w: &tauri::WebviewWindow) -> Option<Rect> {
     ))
 }
 
-/// Size and place a newly opened popup: the faces window at Talk.
+/// Size and place a newly opened popup: the faces window at Talk, the others where they were
+/// last left (else their default on the main screen), clamped onto a connected screen.
 pub fn place_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
     let r = match kind {
         Popup::Faces => spot_rect(app, true),
-        Popup::Controls | Popup::Share => None,
+        Popup::Controls | Popup::Share => {
+            let all = screens(app);
+            main_screen(&all).map(|main| {
+                let saved = load_spots(app);
+                let r = if kind == Popup::Controls {
+                    saved
+                        .controls
+                        .unwrap_or_else(|| default_controls(main.rect))
+                } else {
+                    saved.share.unwrap_or_else(|| default_share(main.rect))
+                };
+                let rects: Vec<Rect> = all.iter().map(|s| s.rect).collect();
+                clamp_to_screens(r, &rects)
+            })
+        }
     };
     if let Some(r) = r {
         place(w, r);
     }
 }
 
-/// A popup was moved or resized by hand.
-pub fn remember_popup(_app: &AppHandle, _w: &tauri::WebviewWindow, _kind: Popup) {}
+/// The controls or share window moved or resized: it reopens there. The faces window keeps its
+/// explicit Save Talk / Save Aside.
+pub fn remember_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
+    if kind == Popup::Faces {
+        return;
+    }
+    let Some(r) = current_rect(w) else {
+        return;
+    };
+    let mut spots = load_spots(app);
+    if kind == Popup::Controls {
+        spots.controls = Some(r);
+    } else {
+        spots.share = Some(r);
+    }
+    store_spots(app, &spots);
+}
 
 /// The tray's Faces Window items: (action name, label).
 pub const MENU_ACTIONS: [(&str, &str); 7] = [
