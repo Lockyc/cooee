@@ -9,8 +9,9 @@ links:
 # Follow-ups
 
 - **Calibrate the Meet adapter against a live call.** Its selectors (self tile, presentation tile,
-  active speaker) are unverified, and the speaker cue is unset. Next action: save a layout
-  snapshot (Diagnostics) in a call with a second participant, then set `SELECTORS` from it.
+  your own presentation's tile, active speaker) are unverified, and the speaker cue is unset. Next
+  action: save a layout snapshot (Diagnostics) in a call where a second participant shares their
+  screen, and one while you share yours, then set `SELECTORS` from them.
 - **Confirm shared-stream rendering in the faces window.** If the popup shows black, switch
   `RENDER` to `"canvas"` in `inject/faces.js`.
 - **Manicule target.** Manicule should route `meet.google.com` links to cooee, reading

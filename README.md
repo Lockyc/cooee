@@ -35,7 +35,13 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
 - **The faces window** opens when you join a call and closes when you leave. It shows the other
   participants with their cameras on, re-flowed to fit the window, and the rest as name chips.
   Before anyone else arrives it says **Waiting for others**, and it pulses when someone joins.
-  Hovering shows Mute, Camera, Leave and the spot buttons.
+- **The controls window** is open for the whole call: your own camera, mirrored, beside **Mute**,
+  **Camera** and **Leave**. A button turns red while that device is off. It reopens where you
+  last left it.
+- **The share window** opens when someone else presents and closes when they stop, showing their
+  screen whole. Your own share never opens it. It reopens at the size and place you last gave it.
+- Closing the faces or controls window mid-call hides it; its hotkey or the menu's **Windows**
+  submenu brings it back.
 - **Spots.** **Talk** is centred under the top edge of your largest screen, where a top-mounted
   webcam sits. **Aside** is that screen's bottom-right corner. Dragging or resizing the window
   never changes a spot; **Save Talk** / **Save Aside** does.
@@ -53,6 +59,7 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
 | ⌃⌥⌘A | Snap to Aside | `aside` |
 | ⌃⌥⌘S | Cycle size (keeps the top-centre fixed) | `cycle_size` |
 | ⌃⌥⌘F | Show or hide the faces window | `toggle_faces` |
+| ⌃⌥⌘C | Show or hide the controls window | `toggle_controls` |
 | ⌃⌥⌘M | Show or hide the Meet window | `toggle_meet` |
 | ⌃⌥⌘⇧T | Save the current position as Talk | `save_talk` |
 | ⌃⌥⌘⇧A | Save the current position as Aside | `save_aside` |
@@ -93,7 +100,7 @@ talk = "Ctrl+Alt+Cmd+T"
 
 ## Limits
 
-cooee reads the call from Meet's page, so a change to Meet's layout can break the faces window.
+cooee reads the call from Meet's page, so a change to Meet's layout can break its windows.
 When it can't find the video tiles it says so; in a call, **Diagnostics → Save Meet Layout
 Snapshot** writes the tiles' structure (no video, no chat) to `adapter-dump.json` and reveals it,
 which is what a fix is made from. Faces show no cue for who is speaking.
