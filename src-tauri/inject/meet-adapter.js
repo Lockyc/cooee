@@ -1,5 +1,6 @@
 // cooee's Meet adapter — the ONLY code that knows Google Meet's DOM. It reads the call into a
-// platform-neutral model ({ inCall, adapterOk, participants: [...] }) and performs Meet's own
+// platform-neutral model ({ inCall, adapterOk, participants: [...], self: { micOn, cameraOn,
+// stream }, presentation: { id, name, stream } | null }) and performs Meet's own
 // controls. Everything else in cooee consumes `window.__cooee` and never touches Meet's DOM, so a
 // Meet redesign is fixed here, in SELECTORS and the readers below it.
 (function () {
@@ -19,6 +20,10 @@
     name: ["[data-self-name]", "[data-tooltip]", ".notranslate", "span"],
     // A tile whose label or text says it is a presentation.
     presentation: /present/i,
+    // Your own presentation's tile, which never opens the share window.
+    selfPresentation: /you('re| are) presenting/i,
+    // A mic/camera button labelled "Turn on …" means that device is off.
+    deviceOff: /^turn on/i,
     // Self: Meet marks the local tile, the People panel's row says "(You)", only your own tile
     // carries the Reframe control, and your video is mirrored.
     selfAttr: "data-self-name",
@@ -127,12 +132,46 @@
         name: tileName(tile),
         isSelf: isSelf(els, video),
         isPresentation: SELECTORS.presentation.test(label),
+        isOwnPresentation: SELECTORS.selfPresentation.test(label),
         cameraOn,
         speaking: !!SELECTORS.speaking && !!tile.querySelector(SELECTORS.speaking),
         stream: cameraOn ? video.srcObject : null,
       });
     }
     return [...byId.values()];
+  }
+
+  // A device's on/off state from Meet's own toggle button; null when the button isn't on the page.
+  function deviceOn(kind) {
+    const label = document.querySelector(SELECTORS[kind])?.getAttribute("aria-label");
+    return label == null ? null : !SELECTORS.deviceOff.test(label);
+  }
+
+  // The live camera track wrapped once per track, so the preview's stream keeps its identity
+  // across reads (a new MediaStream each read would rebuild the preview every tick).
+  let localPreview = null;
+  function localCameraStream() {
+    const track = [...localTracks].find((t) => t.kind === "video" && t.readyState === "live");
+    if (!track) return null;
+    if (localPreview?.track !== track) localPreview = { track, stream: new MediaStream([track]) };
+    return localPreview.stream;
+  }
+
+  // You: mic and camera from Meet's buttons; the preview is your tile's stream, else the camera
+  // track Meet captured (your tile may be off-screen or unrecognised).
+  function readSelf(participants) {
+    const cameraOn = deviceOn("camera");
+    const tile = participants.find((p) => p.isSelf && !p.isPresentation);
+    const stream = cameraOn === false ? null : tile?.stream || localCameraStream();
+    return { micOn: deviceOn("mic"), cameraOn, stream };
+  }
+
+  // Another participant's screen share; never your own.
+  function readPresentation(participants) {
+    const p = participants.find(
+      (p) => p.isPresentation && !p.isSelf && !p.isOwnPresentation && p.stream
+    );
+    return p ? { id: p.id, name: p.name, stream: p.stream } : null;
   }
 
   let inCallSince = 0;
@@ -143,14 +182,22 @@
     else if (!inCallSince) inCallSince = Date.now();
     const adapterOk =
       !inCall || participants.length > 0 || Date.now() - inCallSince < HEALTH_GRACE_MS;
-    return { inCall, adapterOk, participants };
+    return {
+      inCall,
+      adapterOk,
+      participants,
+      self: readSelf(participants),
+      presentation: inCall ? readPresentation(participants) : null,
+    };
   }
 
   const signature = (m) =>
     JSON.stringify([
       m.inCall,
       m.adapterOk,
-      m.participants.map((p) => [p.id, p.name, p.isSelf, p.isPresentation, p.cameraOn, p.speaking, p.stream?.id]),
+      m.participants.map((p) => [p.id, p.name, p.isSelf, p.isPresentation, p.isOwnPresentation, p.cameraOn, p.speaking, p.stream?.id]),
+      [m.self.micOn, m.self.cameraOn, m.self.stream?.id],
+      m.presentation && [m.presentation.id, m.presentation.name, m.presentation.stream.id],
     ]);
 
   let model = read();
@@ -161,10 +208,11 @@
   function report() {
     const others = model.participants.filter((p) => !p.isSelf && !p.isPresentation).length;
     const live = capturing();
-    const r = JSON.stringify([model.inCall, others, model.adapterOk, live]);
+    const sharing = !!model.presentation;
+    const r = JSON.stringify([model.inCall, others, model.adapterOk, live, sharing]);
     if (r === lastReported) return;
     lastReported = r;
-    ipc("meet_state", { inCall: model.inCall, others, adapterOk: model.adapterOk, capturing: live }).catch(() => {
+    ipc("meet_state", { inCall: model.inCall, others, adapterOk: model.adapterOk, capturing: live, sharing }).catch(() => {
       if (lastReported === r) lastReported = ""; // resend on the next tick
     });
   }
@@ -232,11 +280,13 @@
         b.getAttribute("aria-label")
       );
       const participants = model.participants.map(({ stream, ...p }) => p);
+      const { stream: selfStream, ...self } = model.self;
+      const presentation = model.presentation && { id: model.presentation.id, name: model.presentation.name };
       ipc("adapter_dump", {
         json: JSON.stringify(
           {
             at: new Date().toISOString(),
-            model: { ...model, participants },
+            model: { ...model, participants, self: { ...self, preview: !!selfStream }, presentation },
             tiles,
             buttons,
             faces: window.__cooeeFaces?.diag?.() ?? null,
