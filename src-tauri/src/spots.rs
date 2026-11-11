@@ -28,6 +28,7 @@ enum Action {
     CycleSize,
     ToggleFaces,
     ToggleControls,
+    ToggleShare,
     ToggleMeet,
     SaveTalk,
     SaveAside,
@@ -220,12 +221,13 @@ fn toggle_popup(app: &AppHandle, kind: Popup) {
 }
 
 /// The tray's Windows items: (action name, label).
-pub const MENU_ACTIONS: [(&str, &str); 8] = [
+pub const MENU_ACTIONS: [(&str, &str); 9] = [
     ("talk", "Snap to Talk"),
     ("aside", "Snap to Aside"),
     ("cycle_size", "Cycle Size"),
     ("toggle_faces", "Show/Hide Faces"),
     ("toggle_controls", "Show/Hide Controls"),
+    ("toggle_share", "Show/Hide Share"),
     ("toggle_meet", "Show/Hide Meet"),
     ("save_talk", "Save as Talk"),
     ("save_aside", "Save as Aside"),
@@ -238,6 +240,7 @@ fn action_named(name: &str) -> Option<Action> {
         "cycle_size" => Action::CycleSize,
         "toggle_faces" => Action::ToggleFaces,
         "toggle_controls" => Action::ToggleControls,
+        "toggle_share" => Action::ToggleShare,
         "toggle_meet" => Action::ToggleMeet,
         "save_talk" => Action::SaveTalk,
         "save_aside" => Action::SaveAside,
@@ -281,6 +284,7 @@ fn run(app: &AppHandle, action: Action) {
         }
         Action::ToggleFaces => toggle_popup(app, Popup::Faces),
         Action::ToggleControls => toggle_popup(app, Popup::Controls),
+        Action::ToggleShare => toggle_popup(app, Popup::Share),
         Action::ToggleMeet => match meet::meet_window(app) {
             Some(m) if m.is_visible().unwrap_or(false) => {
                 let _ = m.hide();
@@ -460,5 +464,11 @@ mod menu_tests {
             action_named("toggle_controls"),
             Some(Action::ToggleControls)
         );
+    }
+
+    #[test]
+    fn a_hidden_share_window_comes_back_from_the_menu() {
+        assert!(MENU_ACTIONS.contains(&("toggle_share", "Show/Hide Share")));
+        assert_eq!(action_named("toggle_share"), Some(Action::ToggleShare));
     }
 }

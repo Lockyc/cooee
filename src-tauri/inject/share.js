@@ -20,7 +20,6 @@
 
   function render(ui, model) {
     const p = model.presentation;
-    ui.d.title = p?.name ? `${p.name}'s screen` : "Shared screen";
     if (shown?.stream === p?.stream) return;
     drop();
     if (p) {
@@ -30,7 +29,6 @@
   }
 
   window.__cooeePopup("share", {
-    size: [960, 600],
     css: CSS,
     build: (d) => ({ root: d.createElement("div") }),
     render,

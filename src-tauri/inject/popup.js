@@ -74,7 +74,7 @@
 
   const kinds = new Map(); // kind → controller
 
-  // spec: { size: [w, h], css, build(d) → ui (with ui.root), render(ui, model), wanted(model),
+  // spec: { css, build(d) → ui (with ui.root), render(ui, model), wanted(model),
   //         reset?(), diag?() }
   function register(kind, spec) {
     let popup = null;
@@ -84,8 +84,8 @@
       if (popup && !popup.closed) return;
       // An explicit URL: WebKit reports `window.open("")` as an empty string, which Tauri can't
       // parse and denies; the fragment tells Rust which window this is.
-      const [w, h] = spec.size;
-      popup = window.open(`about:blank#${kind}`, `cooee-${kind}`, `width=${w},height=${h}`);
+      // No size: Rust places and sizes every popup (src-tauri/src/spots.rs).
+      popup = window.open(`about:blank#${kind}`, `cooee-${kind}`);
       if (popup) ensureBuilt();
     }
 
@@ -94,6 +94,14 @@
     // DOM calls, never innerHTML: the popup inherits Meet's `require-trusted-types-for 'script'`
     // CSP, under which an innerHTML string throws.
     function ensureBuilt() {
+      // Destroyed underneath us while still wanted (a stop-then-restart share whose "stopped"
+      // reached Rust late): open it again rather than wait for a model change that won't come.
+      if (popup?.closed && window.__cooee && spec.wanted(window.__cooee.model())) {
+        popup = null;
+        ui = null;
+        open();
+        return;
+      }
       if (!popup || popup.closed) return;
       const d = popup.document;
       if (ui && ui.d === d && d.getElementById("root")) return;
@@ -101,8 +109,7 @@
       const style = d.createElement("style");
       style.textContent = BASE_CSS + spec.css;
       d.head.replaceChildren(style);
-      d.title = "cooee";
-      ui = { ...spec.build(d), d };
+      ui ={ ...spec.build(d), d };
       ui.root.id = "root";
       d.body.replaceChildren(ui.root);
       spec.render(ui, window.__cooee.model());
@@ -127,7 +134,6 @@
           url: d.URL,
           readyState: d.readyState,
           built: !!ui && ui.d === d && !!d.getElementById("root"),
-          title: d.title,
         };
       } catch (e) {
         doc = { error: String(e) };

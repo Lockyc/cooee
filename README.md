@@ -40,8 +40,8 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
   last left it.
 - **The share window** opens when someone else presents and closes when they stop, showing their
   screen whole. Your own share never opens it. It reopens at the size and place you last gave it.
-- Closing the faces or controls window mid-call hides it; its hotkey or the menu's **Windows**
-  submenu brings it back.
+- Closing any of these windows mid-call hides it; the menu's **Windows** submenu (or the faces
+  and controls hotkeys) brings it back.
 - **Spots.** **Talk** is centred under the top edge of your largest screen, where a top-mounted
   webcam sits. **Aside** is that screen's bottom-right corner. Dragging or resizing the window
   never changes a spot; **Save Talk** / **Save Aside** does.

@@ -73,7 +73,6 @@
   }
 
   window.__cooeePopup("controls", {
-    size: [340, 100],
     css: CSS,
     build,
     render,

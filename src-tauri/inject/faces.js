@@ -100,7 +100,6 @@
   }
 
   window.__cooeePopup("faces", {
-    size: [560, 350],
     css: CSS,
     build,
     render,

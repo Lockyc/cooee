@@ -12,8 +12,8 @@ links:
   your own presentation's tile, active speaker) are unverified, and the speaker cue is unset. Next
   action: save a layout snapshot (Diagnostics) in a call where a second participant shares their
   screen, and one while you share yours, then set `SELECTORS` from them.
-- **Confirm shared-stream rendering in the faces window.** If the popup shows black, switch
-  `RENDER` to `"canvas"` in `inject/faces.js`.
+- **Confirm shared-stream rendering in the popups.** If a popup shows black, switch `RENDER` to
+  `"canvas"` in `inject/popup.js`.
 - **Manicule target.** Manicule should route `meet.google.com` links to cooee, reading
   `profiles.json` and launching
   `open -b au.lsjc.cooee 'cooee://join?profile=<name>&url=<link>'`. That change belongs in
