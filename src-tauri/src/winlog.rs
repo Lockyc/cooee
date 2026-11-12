@@ -47,7 +47,18 @@ pub fn record(w: &WebviewWindow, e: &WindowEvent) {
         .flatten()
         .and_then(|m| m.name().cloned())
         .unwrap_or_default();
-    let Ok(dir) = w.app_handle().path().app_data_dir() else {
+    note(
+        w.app_handle(),
+        &format!(
+            "{} {event} | now {rect} scale {scale} on {monitor}",
+            w.label()
+        ),
+    );
+}
+
+/// Append one line to the log.
+pub fn note(app: &tauri::AppHandle, line: &str) {
+    let Ok(dir) = app.path().app_data_dir() else {
         return;
     };
     let path = dir.join("window-events.log");
@@ -63,10 +74,6 @@ pub fn record(w: &WebviewWindow, e: &WindowEvent) {
         .append(true)
         .open(&path)
     {
-        let _ = writeln!(
-            f,
-            "{now} {} {event} | now {rect} scale {scale} on {monitor}",
-            w.label()
-        );
+        let _ = writeln!(f, "{now} {line}");
     }
 }

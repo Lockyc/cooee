@@ -37,36 +37,31 @@
   // Local camera/mic tracks, captured by wrapping getUserMedia before Meet's scripts run. This
   // is the selector-free signal that a call (or its preview) is live, so a join never silently
   // drops a call the DOM readers below have lost track of.
-  const localTracks = new Set();
-  const md = navigator.mediaDevices;
-  if (md && md.getUserMedia) {
-    const gum = md.getUserMedia.bind(md);
-    md.getUserMedia = async (constraints) => {
-      const stream = await gum(constraints);
+  // Wrapped on MediaDevices.prototype, not the navigator.mediaDevices instance: a call made
+  // through the prototype skips an instance property.
+  const proto = window.MediaDevices?.prototype;
+  function track(method, into, settled) {
+    const original = proto?.[method];
+    if (!original) return;
+    proto[method] = async function (constraints) {
+      const pending = original.call(this, constraints);
+      const stream = await (settled ? pending.finally(settled) : pending);
       for (const t of stream.getTracks()) {
-        localTracks.add(t);
-        t.addEventListener("ended", () => localTracks.delete(t));
+        into.add(t);
+        t.addEventListener("ended", () => into.delete(t));
       }
       return stream;
     };
   }
+  const localTracks = new Set();
+  track("getUserMedia", localTracks);
   const capturing = () => [...localTracks].some((t) => t.readyState === "live");
 
   // Your own screen-share tracks, captured the same way: a presentation tile playing one is yours
-  // whatever Meet's DOM says, so your share can never open the share window.
+  // whatever Meet's DOM says, so your share can never open the share window. However the request
+  // settles, the picker is closed: darkfield parks its canvas window again.
   const displayTracks = new Set();
-  if (md && md.getDisplayMedia) {
-    const gdm = md.getDisplayMedia.bind(md);
-    md.getDisplayMedia = async (constraints) => {
-      // However it settles, the picker is closed: darkfield parks its canvas window again.
-      const stream = await gdm(constraints).finally(() => ipc("share_picker_closed").catch(() => {}));
-      for (const t of stream.getTracks()) {
-        displayTracks.add(t);
-        t.addEventListener("ended", () => displayTracks.delete(t));
-      }
-      return stream;
-    };
-  }
+  track("getDisplayMedia", displayTracks, () => ipc("share_picker_closed").catch(() => {}));
   const isOwnShare = (stream) => !!stream?.getTracks?.().some((t) => displayTracks.has(t));
 
   // Always a promise, so a caller can retry on failure.

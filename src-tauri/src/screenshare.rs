@@ -72,6 +72,7 @@ extern "C-unwind" fn request_display_capture(
         ))
         .show_with_result(move |answer| {
             let d = decision(&answer);
+            crate::winlog::note(&main, &format!("share picker opening: {d:?}"));
             let _ = main.run_on_main_thread(move || {
                 if d == Decision::WindowPrompt {
                     darkfield(PICKER_WILL_OPEN);
@@ -107,7 +108,8 @@ fn darkfield(name: &str) {
 }
 
 /// Meet's `getDisplayMedia` settled — shared or cancelled — so the picker is gone.
-pub fn picker_closed() {
+pub fn picker_closed(app: &AppHandle) {
+    crate::winlog::note(app, "share picker closed (page)");
     darkfield(PICKER_DID_CLOSE);
 }
 
