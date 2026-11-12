@@ -107,8 +107,9 @@ impl Spots {
     }
 }
 
-/// Talk's default: centred on `screen` and flush with its top — directly under the menu bar,
-/// since `screen` is the work area — nearest a top-mounted webcam.
+/// Talk, the faces window's primary spot: centred on `screen` and flush with its top (`screen`
+/// is the work area, so directly under the menu bar) — directly under the webcam of a laptop or
+/// a TV-mounted camera, so you look at the camera while watching faces.
 pub fn default_talk(screen: Rect, size: Size) -> Rect {
     let (w, h) = (size.width as f64, size.height as f64);
     Rect {
