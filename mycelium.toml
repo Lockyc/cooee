@@ -6,6 +6,7 @@ tags    = ["video-calls", "google-meet", "macos"]
 stack   = ["rust", "tauri", "javascript"]
 
 [github]
+description  = "Google Meet in its own window, with an always-on-top window of the other people's faces that snaps to where you look. macOS menu-bar app (Tauri)."
 topics_extra = ["tauri-app", "wkwebview", "picture-in-picture"]
 
 [[provides]]
