@@ -48,7 +48,7 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
   and controls hotkeys) brings it back.
 - **Spots.** **Talk**, where the faces window opens, is centred on your main display (the one with the
   menu bar), touching the menu bar — directly under a laptop's or TV-mounted webcam. **Aside** is that screen's bottom-right corner. Dragging or resizing the window
-  never changes a spot; **Save Talk** / **Save Aside** does.
+  never changes a spot; **Save as Talk** / **Save as Aside** does.
 - **Profiles.** Each profile is its own Google sign-in. A Meet link carrying `authuser=<email>`
   opens in the profile with that account; otherwise cooee asks which profile to use.
 - **One call at a time.** A join that arrives during a call asks before leaving it.
