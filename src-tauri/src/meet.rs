@@ -238,6 +238,7 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
         })
         .build()?;
     allow_scripted_popups(&w)?;
+    crate::screenshare::install(app, &w)?;
     set_regular_app(app, true);
     let _ = w.set_focus();
     let app = app.clone();

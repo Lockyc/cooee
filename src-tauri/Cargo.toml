@@ -34,3 +34,4 @@ cooee-config = { path = "../crates/cooee-config" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
+block2 = "0.6"

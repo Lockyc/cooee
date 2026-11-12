@@ -394,6 +394,7 @@ dependencies = [
 name = "cooee"
 version = "0.1.0"
 dependencies = [
+ "block2",
  "cooee-config",
  "objc2",
  "serde",

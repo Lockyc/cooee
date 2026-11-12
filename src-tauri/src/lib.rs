@@ -2,6 +2,7 @@ mod bridge;
 mod deeplink;
 mod meet;
 mod popups;
+mod screenshare;
 mod spots;
 mod tray;
 
