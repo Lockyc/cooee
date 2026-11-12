@@ -2,8 +2,7 @@
 //! as Safari asks. WebKit routes `getDisplayMedia` to the private `WKUIDelegatePrivate`
 //! `_webView:requestDisplayCapturePermissionForOrigin:…` once a UI delegate implements the public
 //! camera/mic permission method (wry's does). An answer of "window" opens WebKit's window picker,
-//! "screen" its screen picker. Without the method WebKit only ever offers a whole screen. Both are
-//! WebKit's list pickers, not the system's click-a-window one.
+//! "screen" its screen picker. Without the method WebKit only ever offers a whole screen.
 
 use std::sync::OnceLock;
 
@@ -86,13 +85,6 @@ pub fn install(app: &AppHandle, w: &WebviewWindow) -> tauri::Result<()> {
     let _ = APP.set(app.clone());
     w.with_webview(|pw| unsafe {
         let wv = pw.inner() as *mut AnyObject;
-        // WebKit's own picker lists windows by name; the system one picks by clicking a window
-        // on screen, which can never reach darkfield's canvas (it sits off screen).
-        let list_picker = sel!(_setSystemCanPromptForGetDisplayMediaForTesting:);
-        let can: bool = msg_send![&*wv, respondsToSelector: list_picker];
-        if can {
-            let _: () = msg_send![&*wv, _setSystemCanPromptForGetDisplayMediaForTesting: false];
-        }
         let delegate: *mut AnyObject = msg_send![&*wv, UIDelegate];
         if delegate.is_null() {
             return;
