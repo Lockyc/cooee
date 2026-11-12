@@ -40,8 +40,9 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
   last left it.
 - **The share window** opens when someone else presents and closes when they stop, showing their
   screen whole. Your own share never opens it. It reopens at the size and place you last gave it.
-- **Presenting.** Meet's Share button asks whether to share a window (darkfield's canvas, say) or
-  your entire screen, then opens the macOS picker for that choice.
+- **Presenting.** Meet's Share button opens the macOS window picker; **Share Opens** in the menu
+  switches it to the entire-screen picker. While the window picker is open, darkfield's canvas
+  shows in the middle of your main display so you can click it.
 - Closing any of these windows mid-call hides it; the menu's **Windows** submenu (or the faces
   and controls hotkeys) brings it back.
 - **Spots.** **Talk**, where the faces window opens, is centred on your main display (the one with the

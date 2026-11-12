@@ -36,6 +36,7 @@ pub fn run() {
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            screenshare::load(app.handle());
             tray::install(app.handle())?;
             spots::register_hotkeys(app.handle())?;
             deeplink::write_manifest(app.handle());

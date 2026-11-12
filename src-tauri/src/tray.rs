@@ -1,6 +1,6 @@
 //! The menu-bar item: cooee's only always-present surface.
 
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
@@ -9,6 +9,7 @@ use url::Url;
 use cooee_config::{parse_meet_link, profile_for_link, Config, Profile, ProfilePick};
 
 use crate::meet::{self, HOME_URL};
+use crate::screenshare::Target;
 
 const JOIN: &str = "join-clipboard";
 const OPEN: &str = "open:"; // + profile name
@@ -16,6 +17,8 @@ const JOIN_IN: &str = "join-in:"; // + profile name
 const SNAPSHOT: &str = "snapshot";
 const FACES: &str = "faces:"; // + spots action name
 const QUIT: &str = "quit";
+const SHARE_WINDOW: &str = "share-opens:window";
+const SHARE_SCREEN: &str = "share-opens:screen";
 
 pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let cfg = app.state::<Config>();
@@ -69,6 +72,29 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         )?)?;
     }
     menu.append(&faces)?;
+    // What Meet's Share button opens: a check on the current choice.
+    let target = crate::screenshare::target();
+    let share = Submenu::with_id(app, "share-opens", "Share Opens", true)?;
+    let window = CheckMenuItem::with_id(
+        app,
+        SHARE_WINDOW,
+        "Window Picker",
+        true,
+        target == Target::Window,
+        None::<&str>,
+    )?;
+    let screen = CheckMenuItem::with_id(
+        app,
+        SHARE_SCREEN,
+        "Entire Screen Picker",
+        true,
+        target == Target::Screen,
+        None::<&str>,
+    )?;
+    share.append(&window)?;
+    share.append(&screen)?;
+    menu.append(&share)?;
+    app.manage(ShareItems { window, screen });
     let diagnostics = Submenu::with_id(app, "diagnostics", "Diagnostics", true)?;
     diagnostics.append(&MenuItem::with_id(
         app,
@@ -95,10 +121,27 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// The Share Opens items, kept to move the check when the choice changes.
+struct ShareItems {
+    window: CheckMenuItem<tauri::Wry>,
+    screen: CheckMenuItem<tauri::Wry>,
+}
+
+fn set_share_target(app: &AppHandle, t: Target) {
+    crate::screenshare::set_target(app, t);
+    let items = app.state::<ShareItems>();
+    let _ = items.window.set_checked(t == Target::Window);
+    let _ = items.screen.set_checked(t == Target::Screen);
+}
+
 fn on_menu(app: &AppHandle, id: &str) {
     let cfg = app.state::<Config>();
     if id == QUIT {
         app.exit(0);
+    } else if id == SHARE_WINDOW {
+        set_share_target(app, Target::Window);
+    } else if id == SHARE_SCREEN {
+        set_share_target(app, Target::Screen);
     } else if id == JOIN {
         join_from_clipboard(app, &cfg, None);
     } else if let Some(name) = id.strip_prefix(JOIN_IN) {
