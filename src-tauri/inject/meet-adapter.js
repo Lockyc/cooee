@@ -58,7 +58,8 @@
   if (md && md.getDisplayMedia) {
     const gdm = md.getDisplayMedia.bind(md);
     md.getDisplayMedia = async (constraints) => {
-      const stream = await gdm(constraints);
+      // However it settles, the picker is closed: darkfield parks its canvas window again.
+      const stream = await gdm(constraints).finally(() => ipc("share_picker_closed").catch(() => {}));
       for (const t of stream.getTracks()) {
         displayTracks.add(t);
         t.addEventListener("ended", () => displayTracks.delete(t));

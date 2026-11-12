@@ -16,9 +16,9 @@ links:
   doesn't bring the Meet window forward.** Both TVs are scale 1, and nothing in cooee sizes a
   popup on a move. Next action: after a call where either happens, read `window-events.log` in the
   app data dir for the resize's source and for which window held focus when cooee activated.
-- **Confirm Meet's Share button reaches `screenshare.rs`** (its dialog appears, and "Share a
-  Window" lists darkfield's window). It is untested: WebKit only runs `getDisplayMedia` from a
-  focused page after a click.
+- **Confirm darkfield's canvas shows while Meet's window picker is open and parks after.** The
+  notifications are untested from a real share: WebKit only runs `getDisplayMedia` from a focused
+  page after a click.
 - **Confirm shared-stream rendering in the popups.** If a popup shows black, switch `RENDER` to
   `"canvas"` in `inject/popup.js`.
 - **Manicule target.** Manicule should route `meet.google.com` links to cooee, reading

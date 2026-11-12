@@ -24,7 +24,8 @@ config-path resolution.
   `popups.rs` (the faces, controls and share popups made always-on-top, and when each closes),
   `spots.rs` (where popups go, global hotkeys),
   `tray.rs` (menu bar), `bridge.rs` (commands the injected scripts call), `deeplink.rs`,
-  `screenshare.rs` (Meet's Share button: window or entire screen) and `winlog.rs` (the
+  `screenshare.rs` (Meet's Share button: window or entire screen, and the notifications that
+  show darkfield's canvas window while the picker is open) and `winlog.rs` (the
   `window-events.log` diagnostic).
 - `src-tauri/inject/` — scripts injected into meet.google.com:
   - `meet-adapter.js` is the **only code that knows Meet's DOM**. It publishes a neutral model on

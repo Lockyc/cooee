@@ -29,6 +29,12 @@ pub fn meet_state(
     }
 }
 
+/// Meet's screen-share request settled: the window picker, if one opened, has closed.
+#[tauri::command]
+pub fn share_picker_closed() {
+    crate::screenshare::picker_closed();
+}
+
 /// Write the adapter's layout snapshot to `<app data>/adapter-dump.json` and reveal it — once per
 /// tray request; an unrequested call is ignored.
 #[tauri::command]

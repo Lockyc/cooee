@@ -31,6 +31,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             bridge::meet_state,
             bridge::adapter_dump,
+            bridge::share_picker_closed,
         ])
         .setup(move |app| {
             #[cfg(target_os = "macos")]

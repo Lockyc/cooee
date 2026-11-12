@@ -71,12 +71,44 @@ extern "C-unwind" fn request_display_capture(
             CANCEL.into(),
         ))
         .show_with_result(move |answer| {
-            let d = decision(&answer) as isize;
+            let d = decision(&answer);
             let _ = main.run_on_main_thread(move || {
+                if d == Decision::WindowPrompt {
+                    darkfield(PICKER_WILL_OPEN);
+                }
                 let handler = handler;
-                handler.0.call((d,));
+                handler.0.call((d as isize,));
             });
         });
+}
+
+/// darkfield shows its off-screen "▶ Darkfield" canvas window while these bracket a window
+/// picker, since macOS's picker selects a window by clicking it on screen. The names are
+/// darkfield's.
+const PICKER_WILL_OPEN: &str = "com.lockyc.darkfield.pickerWillOpen";
+const PICKER_DID_CLOSE: &str = "com.lockyc.darkfield.pickerDidClose";
+
+fn darkfield(name: &str) {
+    let Ok(name) = std::ffi::CString::new(name) else {
+        return;
+    };
+    unsafe {
+        let (Some(center), Some(string)) = (
+            AnyClass::get(c"NSDistributedNotificationCenter"),
+            AnyClass::get(c"NSString"),
+        ) else {
+            return;
+        };
+        let center: *mut AnyObject = msg_send![center, defaultCenter];
+        let name: *mut AnyObject = msg_send![string, stringWithUTF8String: name.as_ptr()];
+        let none: *mut AnyObject = std::ptr::null_mut();
+        let _: () = msg_send![&*center, postNotificationName: name, object: none, userInfo: none, deliverImmediately: true];
+    }
+}
+
+/// Meet's `getDisplayMedia` settled — shared or cancelled — so the picker is gone.
+pub fn picker_closed() {
+    darkfield(PICKER_DID_CLOSE);
 }
 
 /// Give the Meet webview's UI delegate the display-capture method. The delegate class is wry's,
