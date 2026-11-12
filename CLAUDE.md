@@ -23,7 +23,9 @@ config-path resolution.
 - `src-tauri/src/` — the app: `meet.rs` (the one Meet window and its navigation policy),
   `popups.rs` (the faces, controls and share popups made always-on-top, and when each closes),
   `spots.rs` (where popups go, global hotkeys),
-  `tray.rs` (menu bar), `bridge.rs` (commands the injected scripts call), and `deeplink.rs`.
+  `tray.rs` (menu bar), `bridge.rs` (commands the injected scripts call), `deeplink.rs`,
+  `screenshare.rs` (Meet's Share button: window or entire screen) and `winlog.rs` (the
+  `window-events.log` diagnostic).
 - `src-tauri/inject/` — scripts injected into meet.google.com:
   - `meet-adapter.js` is the **only code that knows Meet's DOM**. It publishes a neutral model on
     `window.__cooee` (`model`, `subscribe`, `act`, `dump`) and reports call state over IPC.

@@ -114,15 +114,18 @@ pub fn create(
             // the call (or the share) ends.
             let w = window.clone();
             let a = app.clone();
-            window.on_window_event(move |e| match e {
-                WindowEvent::CloseRequested { api, .. } => {
-                    api.prevent_close();
-                    let _ = w.hide();
+            window.on_window_event(move |e| {
+                crate::winlog::record(&w, e);
+                match e {
+                    WindowEvent::CloseRequested { api, .. } => {
+                        api.prevent_close();
+                        let _ = w.hide();
+                    }
+                    WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
+                        crate::spots::remember_popup(&a, &w, kind)
+                    }
+                    _ => {}
                 }
-                WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
-                    crate::spots::remember_popup(&a, &w, kind)
-                }
-                _ => {}
             });
             crate::spots::place_popup(app, &window, kind);
             NewWindowResponse::Create { window }

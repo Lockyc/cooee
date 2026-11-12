@@ -242,7 +242,9 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
     set_regular_app(app, true);
     let _ = w.set_focus();
     let app = app.clone();
+    let logged = w.clone();
     w.on_window_event(move |e| {
+        crate::winlog::record(&logged, e);
         if let tauri::WindowEvent::Destroyed = e {
             let pending = app.state::<MeetState>().on_destroyed();
             crate::popups::close_all(&app);

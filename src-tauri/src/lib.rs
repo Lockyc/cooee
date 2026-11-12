@@ -5,6 +5,7 @@ mod popups;
 mod screenshare;
 mod spots;
 mod tray;
+mod winlog;
 
 use tauri_plugin_dialog::DialogExt;
 
