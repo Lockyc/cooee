@@ -2,12 +2,13 @@ name    = "cooee"
 summary = "macOS menu-bar app that runs Google Meet in its own window and floats the other people's faces in an always-on-top window you snap to where you look."
 kind    = "app"
 status  = "active"
-tags    = ["video-calls", "google-meet", "macos"]
+tags    = ["video-conferencing", "google-meet", "macos", "menu-bar", "always-on-top"]
 stack   = ["rust", "tauri", "javascript"]
 
 [github]
 description  = "Google Meet in its own window, with an always-on-top window of the other people's faces that snaps to where you look. macOS menu-bar app (Tauri)."
-topics_extra = ["tauri-app", "wkwebview", "picture-in-picture"]
+topics_extra = ["webkit"]
+topics_omit  = ["javascript"]
 
 [[provides]]
 name    = "meet-faces-window"
