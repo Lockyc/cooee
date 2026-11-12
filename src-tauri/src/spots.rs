@@ -41,6 +41,8 @@ pub struct Hotkeys(Mutex<HashMap<u32, Action>>);
 struct Screen {
     /// The screen's work area, in points.
     rect: Rect,
+    /// The macOS main display: the one carrying the menu bar, set in System Settings → Displays.
+    primary: bool,
 }
 
 /// A monitor's physical rect in points: tao reports each monitor's physical origin as its point
@@ -60,6 +62,7 @@ fn window_rect(outer: PhysicalPosition<i32>, inner: PhysicalSize<u32>, scale: f6
 }
 
 fn screens(app: &AppHandle) -> Vec<Screen> {
+    let primary = app.primary_monitor().ok().flatten().map(|m| *m.position());
     app.available_monitors()
         .unwrap_or_default()
         .iter()
@@ -67,17 +70,19 @@ fn screens(app: &AppHandle) -> Vec<Screen> {
             let a = m.work_area();
             Screen {
                 rect: screen_in_points(a.position, a.size, m.scale_factor()),
+                primary: primary == Some(*m.position()),
             }
         })
         .collect()
 }
 
-/// The screen spots default to: the largest in points (the TV).
+/// The screen spots default to: the macOS main display, else the first.
 fn main_screen(screens: &[Screen]) -> Option<Screen> {
     screens
         .iter()
+        .find(|s| s.primary)
+        .or_else(|| screens.first())
         .copied()
-        .max_by(|a, b| (a.rect.w * a.rect.h).total_cmp(&(b.rect.w * b.rect.h)))
 }
 
 fn spots_path(app: &AppHandle) -> Option<std::path::PathBuf> {
@@ -406,23 +411,33 @@ mod tests {
     }
 
     #[test]
-    fn main_screen_is_the_largest_in_points() {
-        // In physical pixels the retina laptop (3024×1964) outranks a 1080p TV; in points it doesn't.
+    fn main_screen_is_the_macos_main_display() {
+        // Two identical TVs: size can't pick between them, and "largest" landed on the other one.
+        let tv = |x: f64, primary| Screen {
+            rect: Rect {
+                x,
+                y: 0.0,
+                w: 3840.0,
+                h: 2160.0,
+            },
+            primary,
+        };
         let laptop = Screen {
-            rect: screen_in_points(
-                PhysicalPosition::new(0, 0),
-                PhysicalSize::new(3024, 1964),
-                2.0,
-            ),
+            rect: Rect {
+                x: -2056.0,
+                y: 0.0,
+                w: 2056.0,
+                h: 1329.0,
+            },
+            primary: false,
         };
-        let tv = Screen {
-            rect: screen_in_points(
-                PhysicalPosition::new(1512, 0),
-                PhysicalSize::new(1920, 1080),
-                1.0,
-            ),
-        };
-        assert_eq!(main_screen(&[laptop, tv]).unwrap().rect.w, 1920.0);
+        let screens = [tv(0.0, true), laptop, tv(3840.0, false)];
+        assert_eq!(main_screen(&screens).unwrap().rect.x, 0.0);
+        assert_eq!(
+            main_screen(&[laptop, tv(3840.0, false)]).unwrap().rect.x,
+            -2056.0,
+            "no main display reported: the first"
+        );
     }
 
     #[test]
