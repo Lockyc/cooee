@@ -38,27 +38,24 @@ pub struct Spots {
     /// Where the share window was last left — written whenever it moves or resizes.
     #[serde(default)]
     pub share: Option<Rect>,
+    /// The controls window's size (w, h) as you last left it; where it goes is the dock's.
+    #[serde(default)]
+    pub controls_size: Option<(f64, f64)>,
 }
 
 /// The controls window's first size: a 16:9 preview beside three buttons.
-pub const CONTROLS_SIZE: (f64, f64) = (340.0, 100.0);
+pub const CONTROLS_SIZE: (f64, f64) = (440.0, 220.0);
 /// The share window's first size; after that, whatever you made it.
 const SHARE_SIZE: (f64, f64) = (960.0, 600.0);
-/// The gap between the faces window and the controls window docked beside it.
-pub const DOCK_GAP: f64 = 8.0;
 
-/// The controls window docked to the faces window: to its right with tops aligned, or to its
-/// left when the faces window's screen has no room on the right (Aside, in the bottom-right
-/// corner).
+/// The controls window docked flush against the faces window: to its right with tops aligned,
+/// or to its left when the faces window's screen has no room on the right (Aside, in the
+/// bottom-right corner).
 pub fn dock_controls(faces: Rect, (w, h): (f64, f64), screens: &[Rect]) -> Rect {
-    let right = faces.x + faces.w + DOCK_GAP;
+    let right = faces.x + faces.w;
     let fits_right = screen_of(faces, screens).is_none_or(|s| right + w <= s.x + s.w);
     let r = Rect {
-        x: if fits_right {
-            right
-        } else {
-            faces.x - DOCK_GAP - w
-        },
+        x: if fits_right { right } else { faces.x - w },
         y: faces.y,
         w,
         h,
@@ -67,8 +64,7 @@ pub fn dock_controls(faces: Rect, (w, h): (f64, f64), screens: &[Rect]) -> Rect 
 }
 
 /// The controls window before the faces window exists: the bottom-left corner of `screen`.
-pub fn default_controls(screen: Rect) -> Rect {
-    let (w, h) = CONTROLS_SIZE;
+pub fn default_controls(screen: Rect, (w, h): (f64, f64)) -> Rect {
     Rect {
         x: screen.x + EDGE_INSET,
         y: screen.y + screen.h - h - EDGE_INSET,
@@ -430,18 +426,18 @@ mod tests {
     #[test]
     fn controls_default_is_bottom_left_inset() {
         assert_eq!(
-            default_controls(LAPTOP),
+            default_controls(LAPTOP, CONTROLS_SIZE),
             Rect {
                 x: 24.0,
-                y: 900.0 - 24.0 - 100.0,
-                w: 340.0,
-                h: 100.0
+                y: 900.0 - 24.0 - 220.0,
+                w: 440.0,
+                h: 220.0
             }
         );
     }
 
     #[test]
-    fn controls_dock_to_the_right_of_faces_top_aligned() {
+    fn controls_dock_flush_to_the_right_of_faces_top_aligned() {
         let talk = Rect {
             x: 1640.0,
             y: 25.0,
@@ -449,12 +445,12 @@ mod tests {
             h: 350.0,
         };
         assert_eq!(
-            dock_controls(talk, CONTROLS_SIZE, &[TV]),
+            dock_controls(talk, (443.0, 222.0), &[TV]),
             Rect {
-                x: 1640.0 + 560.0 + DOCK_GAP,
+                x: 2200.0,
                 y: 25.0,
-                w: 340.0,
-                h: 100.0
+                w: 443.0,
+                h: 222.0
             }
         );
     }
@@ -469,7 +465,7 @@ mod tests {
             },
         );
         let r = dock_controls(aside, CONTROLS_SIZE, &[TV]);
-        assert_eq!(r.x, aside.x - DOCK_GAP - 340.0);
+        assert_eq!(r.x, aside.x - CONTROLS_SIZE.0);
         assert_eq!(r.y, aside.y);
     }
 
@@ -489,7 +485,7 @@ mod tests {
             h: 350.0,
         };
         let r = dock_controls(faces, CONTROLS_SIZE, &[TV, laptop]);
-        assert_eq!(r.x, faces.x - DOCK_GAP - 340.0);
+        assert_eq!(r.x, faces.x - CONTROLS_SIZE.0);
     }
 
     #[test]
@@ -510,6 +506,16 @@ mod tests {
         let s = Spots::from_json(r#"{"version":1,"talk":{"x":1,"y":2,"w":3,"h":4},"aside":null}"#);
         assert_eq!(s.talk.map(|r| r.w), Some(3.0));
         assert_eq!(s.share, None);
+        assert_eq!(s.controls_size, None);
+    }
+
+    #[test]
+    fn the_controls_size_round_trips() {
+        let s = Spots {
+            controls_size: Some((443.0, 222.0)),
+            ..Spots::default()
+        };
+        assert_eq!(Spots::from_json(&s.to_json()), s);
     }
 
     #[test]

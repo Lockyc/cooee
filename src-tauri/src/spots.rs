@@ -3,7 +3,8 @@
 //! place. Geometry is in logical points, the one coordinate space macOS screens share; each
 //! monitor's physical rect is divided by its own scale. A spot is the window's outer origin plus
 //! its inner size, matching what `set_position`/`set_size` apply. Moving or resizing the faces
-//! window by hand writes nothing (only Save does); moving the share window is remembered.
+//! window by hand writes nothing (only Save does); moving the share window, and resizing the
+//! controls window, is remembered.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -153,27 +154,22 @@ pub fn place_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
             dock_to_faces(app);
         }
         Popup::Controls => {
+            let size = load_spots(app).controls_size.unwrap_or(CONTROLS_SIZE);
             let faces = popups::window(app, Popup::Faces).and_then(|f| current_rect(&f));
             let r = match faces {
-                Some(f) => Some(dock_controls(f, CONTROLS_SIZE, &rects)),
-                None => {
-                    main_screen(&all).map(|m| clamp_to_screens(default_controls(m.rect), &rects))
-                }
+                Some(f) => Some(dock_controls(f, size, &rects)),
+                None => main_screen(&all)
+                    .map(|m| clamp_to_screens(default_controls(m.rect, size), &rects)),
             };
             if let Some(r) = r {
-                place(w, r);
+                place_tracked(app, w, r);
             }
         }
         Popup::Share => {
             if let Some(main) = main_screen(&all) {
                 let saved = load_spots(app).share;
                 let r = clamp_to_screens(saved.unwrap_or_else(|| default_share(main.rect)), &rects);
-                app.state::<Placed>()
-                    .0
-                    .lock()
-                    .unwrap()
-                    .insert(w.label().to_string(), r);
-                place(w, r);
+                place_tracked(app, w, r);
             }
         }
     }
@@ -190,19 +186,26 @@ pub fn dock_to_faces(app: &AppHandle) {
     };
     let size = current_rect(&controls).map_or(CONTROLS_SIZE, |r| (r.w, r.h));
     let rects: Vec<Rect> = screens(app).iter().map(|s| s.rect).collect();
-    place(&controls, dock_controls(faces, size, &rects));
+    place_tracked(app, &controls, dock_controls(faces, size, &rects));
 }
 
-/// Where cooee last placed each share window (by label), so the Moved/Resized events that
-/// placement fires aren't remembered as the user's choice.
+/// Where cooee last placed each controls and share window (by label), so the Moved/Resized events
+/// that placement fires aren't remembered as the user's choice.
 #[derive(Default)]
 pub struct Placed(Mutex<HashMap<String, Rect>>);
 
-/// The share window moved or resized by hand: it reopens there.
-pub fn remember_share(app: &AppHandle, w: &tauri::WebviewWindow) {
-    let Some(r) = current_rect(w) else {
-        return;
-    };
+fn place_tracked(app: &AppHandle, w: &tauri::WebviewWindow, r: Rect) {
+    app.state::<Placed>()
+        .0
+        .lock()
+        .unwrap()
+        .insert(w.label().to_string(), r);
+    place(w, r);
+}
+
+/// The window's current rect, when it differs from where cooee last placed it.
+fn changed_by_hand(app: &AppHandle, w: &tauri::WebviewWindow) -> Option<Rect> {
+    let r = current_rect(w)?;
     let placed = app
         .state::<Placed>()
         .0
@@ -210,12 +213,25 @@ pub fn remember_share(app: &AppHandle, w: &tauri::WebviewWindow) {
         .unwrap()
         .get(w.label())
         .copied();
-    if !moved_by_hand(r, placed) {
-        return;
+    moved_by_hand(r, placed).then_some(r)
+}
+
+/// The share window moved or resized by hand: it reopens there.
+pub fn remember_share(app: &AppHandle, w: &tauri::WebviewWindow) {
+    if let Some(r) = changed_by_hand(app, w) {
+        let mut spots = load_spots(app);
+        spots.share = Some(r);
+        store_spots(app, &spots);
     }
-    let mut spots = load_spots(app);
-    spots.share = Some(r);
-    store_spots(app, &spots);
+}
+
+/// The controls window resized by hand: it reopens at that size. Where it goes stays the dock's.
+pub fn remember_controls_size(app: &AppHandle, w: &tauri::WebviewWindow) {
+    if let Some(r) = changed_by_hand(app, w) {
+        let mut spots = load_spots(app);
+        spots.controls_size = Some((r.w, r.h));
+        store_spots(app, &spots);
+    }
 }
 
 /// Show a hidden popup, hide a shown one, or — when its window is gone mid-call — have the page

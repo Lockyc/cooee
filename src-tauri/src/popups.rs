@@ -123,7 +123,7 @@ pub fn create(
                     }
                     WindowEvent::Moved(_) | WindowEvent::Resized(_) => match kind {
                         Popup::Faces => crate::spots::dock_to_faces(&a),
-                        Popup::Controls => {}
+                        Popup::Controls => crate::spots::remember_controls_size(&a, &w),
                         Popup::Share => crate::spots::remember_share(&a, &w),
                     },
                     _ => {}
