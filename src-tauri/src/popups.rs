@@ -121,9 +121,11 @@ pub fn create(
                         api.prevent_close();
                         let _ = w.hide();
                     }
-                    WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
-                        crate::spots::remember_popup(&a, &w, kind)
-                    }
+                    WindowEvent::Moved(_) | WindowEvent::Resized(_) => match kind {
+                        Popup::Faces => crate::spots::dock_to_faces(&a),
+                        Popup::Controls => {}
+                        Popup::Share => crate::spots::remember_share(&a, &w),
+                    },
                     _ => {}
                 }
             });

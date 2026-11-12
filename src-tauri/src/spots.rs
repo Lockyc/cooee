@@ -1,9 +1,9 @@
 //! Where popups go: the faces window's spots, the global hotkeys and tray actions that move and
-//! toggle popups, and the controls and share windows' last places. Geometry is in logical points, the
-//! one coordinate space macOS screens share; each monitor's physical rect is divided by its own
-//! scale. A spot is the window's outer origin plus its inner size, matching what
-//! `set_position`/`set_size` apply. Moving or resizing the faces window by hand writes nothing
-//! (only Save does); moving the controls or share window is remembered.
+//! toggle popups, the controls window's dock beside the faces window, and the share window's last
+//! place. Geometry is in logical points, the one coordinate space macOS screens share; each
+//! monitor's physical rect is divided by its own scale. A spot is the window's outer origin plus
+//! its inner size, matching what `set_position`/`set_size` apply. Moving or resizing the faces
+//! window by hand writes nothing (only Save does); moving the share window is remembered.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -14,7 +14,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 use cooee_config::spots::{
     clamp_to_screens, cycle_size, default_aside, default_controls, default_share, default_talk,
-    moved_by_hand, Rect, Spots,
+    dock_controls, moved_by_hand, Rect, Spots, CONTROLS_SIZE,
 };
 use cooee_config::Config;
 
@@ -139,48 +139,67 @@ fn current_rect(w: &tauri::WebviewWindow) -> Option<Rect> {
     ))
 }
 
-/// Size and place a newly opened popup: the faces window at Talk, the others where they were
-/// last left (else their default on the main screen), clamped onto a connected screen.
+/// Size and place a newly opened popup, clamped onto a connected screen: the faces window at
+/// Talk, the controls window docked to it (else at its default, until the faces window opens),
+/// the share window where it was last left (else centred on the main screen).
 pub fn place_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
-    let r = match kind {
-        Popup::Faces => spot_rect(app, true),
-        Popup::Controls | Popup::Share => {
-            let all = screens(app);
-            main_screen(&all).map(|main| {
-                let saved = load_spots(app);
-                let r = if kind == Popup::Controls {
-                    saved
-                        .controls
-                        .unwrap_or_else(|| default_controls(main.rect))
-                } else {
-                    saved.share.unwrap_or_else(|| default_share(main.rect))
-                };
-                let rects: Vec<Rect> = all.iter().map(|s| s.rect).collect();
-                clamp_to_screens(r, &rects)
-            })
+    let all = screens(app);
+    let rects: Vec<Rect> = all.iter().map(|s| s.rect).collect();
+    match kind {
+        Popup::Faces => {
+            if let Some(r) = spot_rect(app, true) {
+                place(w, r);
+            }
+            dock_to_faces(app);
         }
-    };
-    if let Some(r) = r {
-        app.state::<Placed>()
-            .0
-            .lock()
-            .unwrap()
-            .insert(w.label().to_string(), r);
-        place(w, r);
+        Popup::Controls => {
+            let faces = popups::window(app, Popup::Faces).and_then(|f| current_rect(&f));
+            let r = match faces {
+                Some(f) => Some(dock_controls(f, CONTROLS_SIZE, &rects)),
+                None => {
+                    main_screen(&all).map(|m| clamp_to_screens(default_controls(m.rect), &rects))
+                }
+            };
+            if let Some(r) = r {
+                place(w, r);
+            }
+        }
+        Popup::Share => {
+            if let Some(main) = main_screen(&all) {
+                let saved = load_spots(app).share;
+                let r = clamp_to_screens(saved.unwrap_or_else(|| default_share(main.rect)), &rects);
+                app.state::<Placed>()
+                    .0
+                    .lock()
+                    .unwrap()
+                    .insert(w.label().to_string(), r);
+                place(w, r);
+            }
+        }
     }
 }
 
-/// Where cooee last placed each popup window (by label), so the Moved/Resized events that
+/// The faces window moved or resized: the controls window keeps its dock beside it, at whatever
+/// size it has.
+pub fn dock_to_faces(app: &AppHandle) {
+    let Some(faces) = popups::window(app, Popup::Faces).and_then(|f| current_rect(&f)) else {
+        return;
+    };
+    let Some(controls) = popups::window(app, Popup::Controls) else {
+        return;
+    };
+    let size = current_rect(&controls).map_or(CONTROLS_SIZE, |r| (r.w, r.h));
+    let rects: Vec<Rect> = screens(app).iter().map(|s| s.rect).collect();
+    place(&controls, dock_controls(faces, size, &rects));
+}
+
+/// Where cooee last placed each share window (by label), so the Moved/Resized events that
 /// placement fires aren't remembered as the user's choice.
 #[derive(Default)]
 pub struct Placed(Mutex<HashMap<String, Rect>>);
 
-/// The controls or share window moved or resized by hand: it reopens there. The faces window keeps
-/// its explicit Save Talk / Save Aside.
-pub fn remember_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
-    if kind == Popup::Faces {
-        return;
-    }
+/// The share window moved or resized by hand: it reopens there.
+pub fn remember_share(app: &AppHandle, w: &tauri::WebviewWindow) {
     let Some(r) = current_rect(w) else {
         return;
     };
@@ -195,11 +214,7 @@ pub fn remember_popup(app: &AppHandle, w: &tauri::WebviewWindow, kind: Popup) {
         return;
     }
     let mut spots = load_spots(app);
-    if kind == Popup::Controls {
-        spots.controls = Some(r);
-    } else {
-        spots.share = Some(r);
-    }
+    spots.share = Some(r);
     store_spots(app, &spots);
 }
 

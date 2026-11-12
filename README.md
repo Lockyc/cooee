@@ -36,8 +36,8 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
   participants with their cameras on, re-flowed to fit the window, and the rest as name chips.
   Before anyone else arrives it says **Waiting for others**, and it pulses when someone joins.
 - **The controls window** is open for the whole call: your own camera, mirrored, beside **Mute**,
-  **Camera** and **Leave**. A button turns red while that device is off. It reopens where you
-  last left it.
+  **Camera** and **Leave**. A button turns red while that device is off. It sits to the right of
+  the faces window and follows it, switching to its left when the screen has no room on the right.
 - **The share window** opens when someone else presents and closes when they stop, showing their
   screen whole. Your own share never opens it. It reopens at the size and place you last gave it.
 - **Presenting.** Meet's Share button opens the macOS window picker; **Share Opens** in the menu

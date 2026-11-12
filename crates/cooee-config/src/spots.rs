@@ -1,6 +1,6 @@
-//! Popup spots — the faces window's Talk and Aside, and where the controls and share windows
-//! were last left — and sizes: pure geometry in logical points, top-left origin
-//! (Tauri's screen coordinate space).
+//! Popup spots — the faces window's Talk and Aside, the controls window's dock beside it, and
+//! where the share window was last left — and sizes: pure geometry in logical points, top-left
+//! origin (Tauri's screen coordinate space).
 
 use serde::{Deserialize, Serialize};
 
@@ -35,20 +35,38 @@ impl Rect {
 pub struct Spots {
     pub talk: Option<Rect>,
     pub aside: Option<Rect>,
-    /// Where the controls window was last left — written whenever it moves or resizes.
-    #[serde(default)]
-    pub controls: Option<Rect>,
     /// Where the share window was last left — written whenever it moves or resizes.
     #[serde(default)]
     pub share: Option<Rect>,
 }
 
-/// The controls window's size: a 16:9 preview beside three buttons.
-const CONTROLS_SIZE: (f64, f64) = (340.0, 100.0);
+/// The controls window's first size: a 16:9 preview beside three buttons.
+pub const CONTROLS_SIZE: (f64, f64) = (340.0, 100.0);
 /// The share window's first size; after that, whatever you made it.
 const SHARE_SIZE: (f64, f64) = (960.0, 600.0);
+/// The gap between the faces window and the controls window docked beside it.
+pub const DOCK_GAP: f64 = 8.0;
 
-/// The controls window's default: the bottom-left corner of `screen`, clear of Aside.
+/// The controls window docked to the faces window: to its right with tops aligned, or to its
+/// left when the faces window's screen has no room on the right (Aside, in the bottom-right
+/// corner).
+pub fn dock_controls(faces: Rect, (w, h): (f64, f64), screens: &[Rect]) -> Rect {
+    let right = faces.x + faces.w + DOCK_GAP;
+    let fits_right = screen_of(faces, screens).is_none_or(|s| right + w <= s.x + s.w);
+    let r = Rect {
+        x: if fits_right {
+            right
+        } else {
+            faces.x - DOCK_GAP - w
+        },
+        y: faces.y,
+        w,
+        h,
+    };
+    clamp_to_screens(r, screens)
+}
+
+/// The controls window before the faces window exists: the bottom-left corner of `screen`.
 pub fn default_controls(screen: Rect) -> Rect {
     let (w, h) = CONTROLS_SIZE;
     Rect {
@@ -151,23 +169,30 @@ pub fn cycle_size(current: Rect, sizes: &[Size]) -> Rect {
     }
 }
 
+/// The screen `r` overlaps most, else the first.
+fn screen_of(r: Rect, screens: &[Rect]) -> Option<Rect> {
+    let first = *screens.first()?;
+    Some(
+        screens
+            .iter()
+            .fold((first, r.overlap(&first)), |best, s| {
+                let o = r.overlap(s);
+                if o > best.1 {
+                    (*s, o)
+                } else {
+                    best
+                }
+            })
+            .0,
+    )
+}
+
 /// Fit `r` wholly onto the screen it overlaps most (the first screen if it overlaps none),
 /// shrinking it if it is bigger than that screen.
 pub fn clamp_to_screens(r: Rect, screens: &[Rect]) -> Rect {
-    let Some(first) = screens.first() else {
+    let Some(s) = screen_of(r, screens) else {
         return r;
     };
-    let s = screens
-        .iter()
-        .fold((first, r.overlap(first)), |best, s| {
-            let o = r.overlap(s);
-            if o > best.1 {
-                (s, o)
-            } else {
-                best
-            }
-        })
-        .0;
     let w = r.w.min(s.w);
     let h = r.h.min(s.h);
     Rect {
@@ -416,6 +441,58 @@ mod tests {
     }
 
     #[test]
+    fn controls_dock_to_the_right_of_faces_top_aligned() {
+        let talk = Rect {
+            x: 1640.0,
+            y: 25.0,
+            w: 560.0,
+            h: 350.0,
+        };
+        assert_eq!(
+            dock_controls(talk, CONTROLS_SIZE, &[TV]),
+            Rect {
+                x: 1640.0 + 560.0 + DOCK_GAP,
+                y: 25.0,
+                w: 340.0,
+                h: 100.0
+            }
+        );
+    }
+
+    #[test]
+    fn controls_dock_left_when_there_is_no_room_on_the_right() {
+        let aside = default_aside(
+            TV,
+            Size {
+                width: 360,
+                height: 225,
+            },
+        );
+        let r = dock_controls(aside, CONTROLS_SIZE, &[TV]);
+        assert_eq!(r.x, aside.x - DOCK_GAP - 340.0);
+        assert_eq!(r.y, aside.y);
+    }
+
+    #[test]
+    fn the_room_on_the_right_is_measured_on_the_faces_screen() {
+        let laptop = Rect {
+            x: 3840.0,
+            y: 0.0,
+            w: 1512.0,
+            h: 982.0,
+        };
+        // Faces at the TV's right edge: the laptop beyond doesn't count as room.
+        let faces = Rect {
+            x: 3840.0 - 560.0,
+            y: 100.0,
+            w: 560.0,
+            h: 350.0,
+        };
+        let r = dock_controls(faces, CONTROLS_SIZE, &[TV, laptop]);
+        assert_eq!(r.x, faces.x - DOCK_GAP - 340.0);
+    }
+
+    #[test]
     fn share_default_is_centred() {
         assert_eq!(
             default_share(LAPTOP),
@@ -432,7 +509,6 @@ mod tests {
     fn a_v1_file_without_popup_spots_still_loads() {
         let s = Spots::from_json(r#"{"version":1,"talk":{"x":1,"y":2,"w":3,"h":4},"aside":null}"#);
         assert_eq!(s.talk.map(|r| r.w), Some(3.0));
-        assert_eq!(s.controls, None);
         assert_eq!(s.share, None);
     }
 
