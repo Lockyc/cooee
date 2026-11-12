@@ -44,8 +44,8 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
   your entire screen, then opens the macOS picker for that choice.
 - Closing any of these windows mid-call hides it; the menu's **Windows** submenu (or the faces
   and controls hotkeys) brings it back.
-- **Spots.** **Talk** is centred under the top edge of your main display (the one with the menu bar), where a top-mounted
-  webcam sits. **Aside** is that screen's bottom-right corner. Dragging or resizing the window
+- **Spots.** **Talk** is centred on your main display (the one with the menu bar), touching the menu bar,
+  nearest a top-mounted webcam. **Aside** is that screen's bottom-right corner. Dragging or resizing the window
   never changes a spot; **Save Talk** / **Save Aside** does.
 - **Profiles.** Each profile is its own Google sign-in. A Meet link carrying `authuser=<email>`
   opens in the profile with that account; otherwise cooee asks which profile to use.

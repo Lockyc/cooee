@@ -107,12 +107,13 @@ impl Spots {
     }
 }
 
-/// Talk's default: centred under the top edge of `screen`, where a top-mounted webcam sits.
+/// Talk's default: centred on `screen` and flush with its top — directly under the menu bar,
+/// since `screen` is the work area — nearest a top-mounted webcam.
 pub fn default_talk(screen: Rect, size: Size) -> Rect {
     let (w, h) = (size.width as f64, size.height as f64);
     Rect {
         x: screen.x + (screen.w - w) / 2.0,
-        y: screen.y + EDGE_INSET,
+        y: screen.y,
         w,
         h,
     }
@@ -203,9 +204,10 @@ mod tests {
     ];
 
     #[test]
-    fn default_talk_is_top_centre() {
+    fn default_talk_is_top_centre_flush_under_the_menu_bar() {
+        let work_area = Rect { y: 25.0, ..TV };
         let r = default_talk(
-            TV,
+            work_area,
             Size {
                 width: 560,
                 height: 350,
@@ -215,7 +217,7 @@ mod tests {
             r,
             Rect {
                 x: 1640.0,
-                y: 24.0,
+                y: 25.0,
                 w: 560.0,
                 h: 350.0
             }
