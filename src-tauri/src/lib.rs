@@ -49,12 +49,18 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building cooee")
-        .run(|app, event| {
+        .run(|app, event| match event {
             // `open 'cooee://join?…'`, or a link router handing over a Meet link.
-            if let tauri::RunEvent::Opened { urls } = event {
+            tauri::RunEvent::Opened { urls } => {
                 for url in &urls {
                     deeplink::handle_url(app, url.as_str());
                 }
             }
+            // The last window closing (no exit code) leaves cooee in the menu bar; only an
+            // explicit `app.exit` — the tray's Quit — ends it.
+            tauri::RunEvent::ExitRequested {
+                code: None, api, ..
+            } => api.prevent_exit(),
+            _ => {}
         });
 }
