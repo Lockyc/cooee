@@ -100,16 +100,91 @@ extern "C-unwind" fn request_display_capture(
     decision_handler: *mut Block<dyn Fn(isize)>,
 ) {
     let d = target().decision();
-    if let Some(app) = APP.get() {
+    // SAFETY: WebKit hands a valid block; copying keeps it alive until it is answered.
+    let Some(handler) = (unsafe { RcBlock::copy(decision_handler) }) else {
+        return;
+    };
+    let app = APP.get();
+    if let Some(app) = app {
         crate::winlog::note(app, &format!("share picker opening: {d:?}"));
     }
-    if d == Decision::WindowPrompt {
-        darkfield(PICKER_WILL_OPEN);
+    match app {
+        // macOS's picker lists windows as it opens: it waits for darkfield to put its canvas on
+        // screen (`pickerReady`), or for READY_TIMEOUT if darkfield never answers.
+        Some(app) if d == Decision::WindowPrompt && darkfield_running() => {
+            *PENDING.lock().unwrap() = Some(Pending(handler, d));
+            darkfield(PICKER_WILL_OPEN);
+            let app = app.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(READY_TIMEOUT);
+                let _ = app.run_on_main_thread(|| answer_pending("no answer from darkfield"));
+            });
+        }
+        _ => handler.call((d as isize,)),
     }
-    // SAFETY: WebKit hands a valid block, called here, on the main thread, before returning.
-    if let Some(handler) = unsafe { RcBlock::copy(decision_handler) } {
+}
+
+/// The decision waiting on darkfield's `pickerReady`.
+struct Pending(RcBlock<dyn Fn(isize)>, Decision);
+// SAFETY: stored and taken on the main thread only (WebKit's call, the main-queue observer, and
+// `run_on_main_thread`); the mutex is for the static's sake.
+unsafe impl Send for Pending {}
+
+static PENDING: std::sync::Mutex<Option<Pending>> = std::sync::Mutex::new(None);
+
+/// How long a window picker waits for darkfield's answer before opening anyway.
+const READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// Open the waiting picker, once: darkfield answered, or the wait ran out.
+fn answer_pending(why: &str) {
+    let pending = PENDING.lock().unwrap().take();
+    if let Some(Pending(handler, d)) = pending {
+        if let Some(app) = APP.get() {
+            crate::winlog::note(app, &format!("share picker opens: {why}"));
+        }
         handler.call((d as isize,));
     }
+}
+
+fn darkfield_running() -> bool {
+    unsafe {
+        let (Some(running), Some(string)) = (
+            AnyClass::get(c"NSRunningApplication"),
+            AnyClass::get(c"NSString"),
+        ) else {
+            return false;
+        };
+        let id: *mut AnyObject =
+            msg_send![string, stringWithUTF8String: DARKFIELD_BUNDLE_ID.as_ptr()];
+        let apps: *mut AnyObject = msg_send![running, runningApplicationsWithBundleIdentifier: id];
+        let count: usize = msg_send![&*apps, count];
+        count > 0
+    }
+}
+
+const DARKFIELD_BUNDLE_ID: &std::ffi::CStr = c"com.lockyc.darkfield";
+const PICKER_READY: &std::ffi::CStr = c"com.lockyc.darkfield.pickerReady";
+
+/// Listen, once, for darkfield's `pickerReady` on the main queue.
+fn observe_ready() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| unsafe {
+        let (Some(center), Some(string), Some(queue)) = (
+            AnyClass::get(c"NSDistributedNotificationCenter"),
+            AnyClass::get(c"NSString"),
+            AnyClass::get(c"NSOperationQueue"),
+        ) else {
+            return;
+        };
+        let center: *mut AnyObject = msg_send![center, defaultCenter];
+        let name: *mut AnyObject = msg_send![string, stringWithUTF8String: PICKER_READY.as_ptr()];
+        let main: *mut AnyObject = msg_send![queue, mainQueue];
+        let block = RcBlock::new(|_note: *mut AnyObject| answer_pending("darkfield ready"));
+        let none: *mut AnyObject = std::ptr::null_mut();
+        let token: *mut AnyObject = msg_send![&*center, addObserverForName: name, object: none, queue: main, usingBlock: &*block];
+        // The observer lives as long as cooee.
+        let _: *mut AnyObject = msg_send![&*token, retain];
+    });
 }
 
 /// darkfield shows its off-screen "▶ Darkfield" canvas window while these bracket a window
@@ -146,6 +221,7 @@ pub fn picker_closed(app: &AppHandle) {
 /// shared by every webview, so adding the method once covers every later Meet window.
 pub fn install(app: &AppHandle, w: &WebviewWindow) -> tauri::Result<()> {
     let _ = APP.set(app.clone());
+    observe_ready();
     w.with_webview(|pw| unsafe {
         let wv = pw.inner() as *mut AnyObject;
         let delegate: *mut AnyObject = msg_send![&*wv, UIDelegate];
