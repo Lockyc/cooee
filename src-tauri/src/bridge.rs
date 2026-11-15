@@ -35,6 +35,13 @@ pub fn share_picker_closed(app: AppHandle) {
     crate::screenshare::picker_closed(&app);
 }
 
+/// A button on the share window's toolbar: a size, `minimise` or `restore`. Returns whether the
+/// window is now minimised.
+#[tauri::command]
+pub fn share_window(app: AppHandle, action: String) -> Result<bool, String> {
+    crate::spots::share_window(&app, &action)
+}
+
 /// Write the adapter's layout snapshot to `<app data>/adapter-dump.json` and reveal it — once per
 /// tray request; an unrequested call is ignored.
 #[tauri::command]

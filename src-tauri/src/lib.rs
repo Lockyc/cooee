@@ -28,10 +28,12 @@ pub fn run() {
         .manage(meet::MeetState::default())
         .manage(spots::Hotkeys::default())
         .manage(spots::Placed::default())
+        .manage(spots::ShareMinimised::default())
         .invoke_handler(tauri::generate_handler![
             bridge::meet_state,
             bridge::adapter_dump,
             bridge::share_picker_closed,
+            bridge::share_window,
         ])
         .setup(move |app| {
             #[cfg(target_os = "macos")]

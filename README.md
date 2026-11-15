@@ -40,7 +40,10 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
   right of the faces window and follows it, switching to its left when the screen has no room on
   the right. It reopens at the size you last gave it.
 - **The share window** opens when someone else presents and closes when they stop, showing their
-  screen whole. Your own share never opens it. It reopens at the size and place you last gave it.
+  screen whole. Your own share never opens it. Its toolbar sizes it to Small, Medium, Large or
+  Fill (a third, half, three quarters or all of its screen), and Minimise tucks it into the
+  screen's bottom-right corner as a thumbnail; Restore, or a click on the thumbnail, brings it
+  back at full size. It reopens at the size and place you last gave it.
 - **Presenting.** Meet's Share button opens the macOS window picker; **Share Opens** in the menu
   switches it to the entire-screen picker. While the window picker is open, [darkfield](https://github.com/lockyc/darkfield)'s canvas
   (when darkfield is running) shows in the middle of your main display so you can click it.

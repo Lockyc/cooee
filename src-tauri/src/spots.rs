@@ -15,7 +15,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 use cooee_config::spots::{
     clamp_to_screens, cycle_size, default_aside, default_controls, default_share, default_talk,
-    dock_controls, moved_by_hand, Rect, Spots, CONTROLS_SIZE,
+    dock_controls, moved_by_hand, share_sized, share_tile, Rect, ShareSize, Spots, CONTROLS_SIZE,
 };
 use cooee_config::Config;
 
@@ -216,8 +216,60 @@ fn changed_by_hand(app: &AppHandle, w: &tauri::WebviewWindow) -> Option<Rect> {
     moved_by_hand(r, placed).then_some(r)
 }
 
-/// The share window moved or resized by hand: it reopens there.
+/// The minimised share window (by label) and the rect Restore puts it back at. A new share's
+/// window has a new label, so it opens unminimised.
+#[derive(Default)]
+pub struct ShareMinimised(Mutex<Option<(String, Rect)>>);
+
+fn minimised_restore(app: &AppHandle, w: &tauri::WebviewWindow) -> Option<Rect> {
+    match &*app.state::<ShareMinimised>().0.lock().unwrap() {
+        Some((label, r)) if label == w.label() => Some(*r),
+        _ => None,
+    }
+}
+
+/// The share window's toolbar: `minimise` tucks it into its screen's corner as a thumbnail,
+/// `restore` puts it back and focuses it, and a size name (`small`, `medium`, `large`, `fill`)
+/// sizes it, restoring it first. Returns whether it is now minimised.
+pub fn share_window(app: &AppHandle, action: &str) -> Result<bool, String> {
+    let Some(w) = popups::window(app, Popup::Share) else {
+        return Ok(false);
+    };
+    let current = current_rect(&w).ok_or("the share window has no position")?;
+    let restore = minimised_restore(app, &w);
+    let rects: Vec<Rect> = screens(app).iter().map(|s| s.rect).collect();
+    let state = app.state::<ShareMinimised>();
+    if action == "minimise" {
+        if restore.is_none() {
+            *state.0.lock().unwrap() = Some((w.label().to_string(), current));
+            place_tracked(app, &w, share_tile(current, &rects));
+        }
+        return Ok(true);
+    }
+    let r = match (action, ShareSize::named(action)) {
+        ("restore", _) => restore.unwrap_or(current),
+        (_, Some(size)) => {
+            let r = share_sized(restore.unwrap_or(current), size, &rects);
+            let mut spots = load_spots(app);
+            spots.share = Some(r);
+            store_spots(app, &spots);
+            r
+        }
+        _ => return Err(format!("unknown share window action {action:?}")),
+    };
+    *state.0.lock().unwrap() = None;
+    place_tracked(app, &w, r);
+    let _ = w.show();
+    let _ = w.set_focus();
+    Ok(false)
+}
+
+/// The share window moved or resized by hand: it reopens there. Dragging the minimised
+/// thumbnail isn't a place to reopen at.
 pub fn remember_share(app: &AppHandle, w: &tauri::WebviewWindow) {
+    if minimised_restore(app, w).is_some() {
+        return;
+    }
     if let Some(r) = changed_by_hand(app, w) {
         let mut spots = load_spots(app);
         spots.share = Some(r);

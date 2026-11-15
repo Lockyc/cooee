@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-share-window"
+description = "Enables the share_window command without any pre-configured scope."
+commands.allow = ["share_window"]
+
+[[permission]]
+identifier = "deny-share-window"
+description = "Denies the share_window command without any pre-configured scope."
+commands.deny = ["share_window"]
