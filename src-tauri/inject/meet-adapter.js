@@ -1,5 +1,5 @@
 // cooee's Meet adapter — the ONLY code that knows Google Meet's DOM. It reads the call into a
-// platform-neutral model ({ inCall, adapterOk, participants: [...], self: { micOn, cameraOn,
+// platform-neutral model ({ inCall, adapterOk, participants: [{ id, name, isBot, ... }], self: { micOn, cameraOn,
 // stream }, presentation: { id, name, stream } | null }) and performs Meet's own
 // controls. Everything else in cooee consumes `window.__cooee` and never touches Meet's DOM, so a
 // Meet redesign is fixed here, in SELECTORS and the readers below it.
@@ -29,6 +29,9 @@
     selfAttr: "data-self-name",
     selfText: /^\(?you\)?$/i,
     selfIcon: /^frame_person$/,
+    // A notetaker bot joins as an ordinary guest, often streaming a branded card as its camera;
+    // only its display name tells it apart.
+    bot: /\bnote[- ]?taker\b|fireflies|otter\.ai|read\.ai|\bfathom\b|tl;?dv|meetgeek|bluedot|\bsembly\b/i,
     // The active-speaker cue on a tile (calibrated against a live call; empty = unknown).
     speaking: "",
   };
@@ -139,9 +142,11 @@
       const now = Date.now();
       if (visibleVideo(video)) lastLive.set(id, now);
       const cameraOn = !!video?.srcObject && now - (lastLive.get(id) || 0) < CAMERA_OFF_GRACE_MS;
+      const name = tileName(tile);
       byId.set(id, {
         id,
-        name: tileName(tile),
+        name,
+        isBot: SELECTORS.bot.test(name),
         isSelf: isSelf(els, video),
         isPresentation: SELECTORS.presentation.test(label),
         isOwnPresentation: SELECTORS.selfPresentation.test(label),
@@ -218,7 +223,7 @@
   let lastReported = "";
 
   function report() {
-    const others = model.participants.filter((p) => !p.isSelf && !p.isPresentation).length;
+    const others = model.participants.filter((p) => !p.isSelf && !p.isPresentation && !p.isBot).length;
     const live = capturing();
     const sharing = !!model.presentation;
     const r = JSON.stringify([model.inCall, others, model.adapterOk, live, sharing]);
