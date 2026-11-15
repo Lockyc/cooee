@@ -96,6 +96,68 @@ pub fn default_share(screen: Rect) -> Rect {
     }
 }
 
+/// The share window's size buttons, each a share of its screen's work area in both directions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShareSize {
+    Small,
+    Medium,
+    Large,
+    Fill,
+}
+
+impl ShareSize {
+    pub fn named(name: &str) -> Option<ShareSize> {
+        Some(match name {
+            "small" => ShareSize::Small,
+            "medium" => ShareSize::Medium,
+            "large" => ShareSize::Large,
+            "fill" => ShareSize::Fill,
+            _ => return None,
+        })
+    }
+
+    fn fraction(self) -> f64 {
+        match self {
+            ShareSize::Small => 1.0 / 3.0,
+            ShareSize::Medium => 0.5,
+            ShareSize::Large => 0.75,
+            ShareSize::Fill => 1.0,
+        }
+    }
+}
+
+/// The share window at `size` on the screen it is on, keeping its centre where it can.
+pub fn share_sized(current: Rect, size: ShareSize, screens: &[Rect]) -> Rect {
+    let Some(s) = screen_of(current, screens) else {
+        return current;
+    };
+    let (w, h) = (s.w * size.fraction(), s.h * size.fraction());
+    let r = Rect {
+        x: current.x + current.w / 2.0 - w / 2.0,
+        y: current.y + current.h / 2.0 - h / 2.0,
+        w,
+        h,
+    };
+    clamp_to_screens(r, &[s])
+}
+
+/// The minimised share window: a thumbnail of the share with its toolbar.
+pub const SHARE_TILE: (f64, f64) = (320.0, 208.0);
+
+/// The minimised share window, tucked into the bottom-right corner of the screen it is on.
+pub fn share_tile(current: Rect, screens: &[Rect]) -> Rect {
+    let Some(s) = screen_of(current, screens) else {
+        return current;
+    };
+    let (w, h) = SHARE_TILE;
+    Rect {
+        x: s.x + s.w - w - EDGE_INSET,
+        y: s.y + s.h - h - EDGE_INSET,
+        w,
+        h,
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct SpotsFile {
     version: u32,
@@ -499,6 +561,78 @@ mod tests {
                 h: 600.0
             }
         );
+    }
+
+    #[test]
+    fn share_sizes_are_shares_of_its_screen_keeping_the_centre() {
+        let centred = default_share(LAPTOP);
+        let r = share_sized(centred, ShareSize::Medium, &[LAPTOP]);
+        assert_eq!(
+            r,
+            Rect {
+                x: 360.0,
+                y: 225.0,
+                w: 720.0,
+                h: 450.0
+            }
+        );
+        assert_eq!(share_sized(centred, ShareSize::Fill, &[LAPTOP]), LAPTOP);
+    }
+
+    #[test]
+    fn a_share_size_near_an_edge_stays_on_its_screen() {
+        let corner = Rect {
+            x: 1200.0,
+            y: 700.0,
+            w: 240.0,
+            h: 200.0,
+        };
+        let r = share_sized(corner, ShareSize::Large, &[LAPTOP]);
+        assert_eq!((r.w, r.h), (1080.0, 675.0));
+        assert_eq!((r.x + r.w, r.y + r.h), (1440.0, 900.0));
+    }
+
+    #[test]
+    fn share_sizes_use_the_screen_the_window_is_on() {
+        let on_tv = Rect {
+            x: 1500.0,
+            y: 100.0,
+            w: 960.0,
+            h: 600.0,
+        };
+        let laptop_left = Rect {
+            x: -1440.0,
+            ..LAPTOP
+        };
+        let r = share_sized(on_tv, ShareSize::Small, &[laptop_left, TV]);
+        assert_eq!((r.w, r.h), (1280.0, 720.0));
+    }
+
+    #[test]
+    fn the_minimised_share_tucks_into_its_screens_bottom_right() {
+        let r = share_tile(default_share(LAPTOP), &[LAPTOP]);
+        assert_eq!(
+            r,
+            Rect {
+                x: 1440.0 - SHARE_TILE.0 - EDGE_INSET,
+                y: 900.0 - SHARE_TILE.1 - EDGE_INSET,
+                w: SHARE_TILE.0,
+                h: SHARE_TILE.1
+            }
+        );
+    }
+
+    #[test]
+    fn share_sizes_are_named_by_the_toolbar() {
+        for (name, size) in [
+            ("small", ShareSize::Small),
+            ("medium", ShareSize::Medium),
+            ("large", ShareSize::Large),
+            ("fill", ShareSize::Fill),
+        ] {
+            assert_eq!(ShareSize::named(name), Some(size));
+        }
+        assert_eq!(ShareSize::named("minimise"), None);
     }
 
     #[test]
