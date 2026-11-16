@@ -14,11 +14,13 @@ use crate::meet;
 /// Every chooser window's label starts with this; capabilities/chooser.json grants the pick to it.
 const LABEL: &str = "chooser";
 const TITLE: &str = "Join with which account?";
-const WIDTH: f64 = 320.0;
-/// The heading band above the list, in points.
-const HEADER_HEIGHT: f64 = 48.0;
+const WIDTH: f64 = 360.0;
+/// The heading band above the list, in points. The window buttons sit over it.
+const HEADER_HEIGHT: f64 = 52.0;
 /// One profile's button: its name, and its account beneath.
-const ROW_HEIGHT: f64 = 52.0;
+const ROW_HEIGHT: f64 = 56.0;
+/// Room on the heading's left for the window buttons.
+const BUTTONS_INSET: f64 = 78.0;
 /// Rows shown before the list scrolls.
 const MAX_VISIBLE_ROWS: usize = 8;
 
@@ -107,11 +109,14 @@ pub fn ask(app: &AppHandle, cfg: &Config, url: Url) {
     let script = format!(
         "window.__COOEE_CHOICES__ = {};\nwindow.__COOEE_CHOOSER_LAYOUT__ = {};",
         serde_json::Value::from(choices),
-        serde_json::json!({ "header": HEADER_HEIGHT, "row": ROW_HEIGHT }),
+        serde_json::json!({ "header": HEADER_HEIGHT, "row": ROW_HEIGHT, "inset": BUTTONS_INSET }),
     );
     let height = chooser_height(cfg.profiles.len());
     let mut builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("chooser.html".into()))
         .title(TITLE)
+        // The page fills the whole window, title bar included, so `height` is all the page gets.
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true)
         .inner_size(WIDTH, height)
         .resizable(false)
         .always_on_top(true)

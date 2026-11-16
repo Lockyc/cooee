@@ -38,10 +38,11 @@
   h1 {
     flex: 0 0 var(--header);
     margin: 0;
-    padding: 0 14px;
+    padding: 0 14px 0 var(--inset);
     display: flex;
     align-items: center;
     font-size: 13px;
+    -webkit-app-region: drag;
     font-weight: 600;
   }
   ul {
@@ -96,6 +97,7 @@
     const layout = window.__COOEE_CHOOSER_LAYOUT__ || {};
     document.documentElement.style.setProperty("--header", layout.header + "px");
     document.documentElement.style.setProperty("--row", layout.row + "px");
+    document.documentElement.style.setProperty("--inset", layout.inset + "px");
     const choose = (name) =>
       window.__TAURI_INTERNALS__?.invoke("choose_profile", { name });
 
