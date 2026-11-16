@@ -4,7 +4,7 @@
 
 use std::sync::Mutex;
 
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use url::Url;
 
 use cooee_config::Config;
@@ -22,17 +22,23 @@ const ROW_HEIGHT: f64 = 52.0;
 /// Rows shown before the list scrolls.
 const MAX_VISIBLE_ROWS: usize = 8;
 
-/// The link waiting for a pick.
+/// The link waiting for a pick, with the label of the chooser that asked for it.
 #[derive(Default)]
-pub struct Pending(Mutex<Option<Url>>);
+pub struct Pending(Mutex<Option<(String, Url)>>);
 
 impl Pending {
-    pub fn set(&self, url: Url) {
-        *self.0.lock().unwrap() = Some(url);
+    pub fn set(&self, label: String, url: Url) {
+        *self.0.lock().unwrap() = Some((label, url));
     }
 
-    pub fn take(&self) -> Option<Url> {
-        self.0.lock().unwrap().take()
+    /// The link, if the chooser labelled `label` asked for it; a pick from any other chooser
+    /// leaves it waiting.
+    pub fn take(&self, label: &str) -> Option<Url> {
+        let mut slot = self.0.lock().unwrap();
+        match slot.as_ref() {
+            Some((asker, _)) if asker == label => slot.take().map(|(_, url)| url),
+            _ => None,
+        }
     }
 }
 
@@ -90,7 +96,8 @@ fn origin_at_cursor(app: &AppHandle, size: (f64, f64)) -> Option<(f64, f64)> {
 
 /// Ask which profile joins `url`: open the chooser by the cursor, replacing any open one.
 pub fn ask(app: &AppHandle, cfg: &Config, url: Url) {
-    app.state::<Pending>().set(url);
+    let label = next_label();
+    app.state::<Pending>().set(label.clone(), url);
     close(app);
     let choices: Vec<serde_json::Value> = cfg
         .profiles
@@ -103,16 +110,15 @@ pub fn ask(app: &AppHandle, cfg: &Config, url: Url) {
         serde_json::json!({ "header": HEADER_HEIGHT, "row": ROW_HEIGHT }),
     );
     let height = chooser_height(cfg.profiles.len());
-    let mut builder =
-        WebviewWindowBuilder::new(app, next_label(), WebviewUrl::App("chooser.html".into()))
-            .title(TITLE)
-            .inner_size(WIDTH, height)
-            .resizable(false)
-            .always_on_top(true)
-            .visible_on_all_workspaces(true)
-            .skip_taskbar(true)
-            .focused(true)
-            .initialization_script(&script);
+    let mut builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("chooser.html".into()))
+        .title(TITLE)
+        .inner_size(WIDTH, height)
+        .resizable(false)
+        .always_on_top(true)
+        .visible_on_all_workspaces(true)
+        .skip_taskbar(true)
+        .focused(true)
+        .initialization_script(&script);
     match origin_at_cursor(app, (WIDTH, height)) {
         Some((x, y)) => builder = builder.position(x, y),
         None => builder = builder.center(),
@@ -126,11 +132,12 @@ pub fn ask(app: &AppHandle, cfg: &Config, url: Url) {
 }
 
 /// The chooser page's pick: join the pending link as `name`. `None`, or a name no profile has,
-/// cancels.
+/// cancels. A pick from a chooser other than the one that asked closes that chooser and nothing
+/// else.
 #[tauri::command]
-pub fn choose_profile(app: AppHandle, name: Option<String>) {
-    let url = app.state::<Pending>().take();
-    close(&app);
+pub fn choose_profile(app: AppHandle, window: WebviewWindow, name: Option<String>) {
+    let url = app.state::<Pending>().take(window.label());
+    let _ = window.destroy();
     let (Some(url), Some(name)) = (url, name) else {
         return;
     };
@@ -183,8 +190,22 @@ mod tests {
     #[test]
     fn pending_link_is_taken_once() {
         let p = Pending::default();
-        p.set(url::Url::parse("https://meet.google.com/abc-defg-hij").unwrap());
-        assert!(p.take().is_some());
-        assert!(p.take().is_none());
+        p.set(
+            "chooser-0".into(),
+            url::Url::parse("https://meet.google.com/abc-defg-hij").unwrap(),
+        );
+        assert!(p.take("chooser-0").is_some());
+        assert!(p.take("chooser-0").is_none());
+    }
+
+    #[test]
+    fn only_the_chooser_that_asked_takes_the_link() {
+        let p = Pending::default();
+        p.set(
+            "chooser-1".into(),
+            url::Url::parse("https://meet.google.com/abc-defg-hij").unwrap(),
+        );
+        assert!(p.take("chooser-0").is_none());
+        assert!(p.take("chooser-1").is_some());
     }
 }
