@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Join with which account?</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f6f6;
+    --fg: #1d1d1f;
+    --muted: #6e6e73;
+    --hover: rgba(0, 0, 0, 0.06);
+    --focus: #0a64d6;
+    --badge-bg: rgba(0, 0, 0, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #262628;
+      --fg: #f5f5f7;
+      --muted: #a1a1a6;
+      --hover: rgba(255, 255, 255, 0.08);
+      --focus: #3d8bfd;
+      --badge-bg: rgba(255, 255, 255, 0.14);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font: 13px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body { display: flex; flex-direction: column; }
+  h1 {
+    flex: 0 0 var(--header);
+    margin: 0;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  ul {
+    flex: 1 1 auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-y: auto;
+  }
+  button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: var(--row);
+    padding: 0 14px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: default;
+  }
+  button:hover { background: var(--hover); }
+  button:focus { outline: none; }
+  button:focus-visible, button:focus { box-shadow: inset 3px 0 0 var(--focus); background: var(--hover); }
+  .badge {
+    flex: 0 0 20px;
+    height: 20px;
+    border-radius: 5px;
+    background: var(--badge-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .badge.none { background: none; }
+  .text { display: flex; flex-direction: column; min-width: 0; }
+  .name, .account { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name { font-weight: 500; }
+  .account { color: var(--muted); font-size: 12px; margin-top: 2px; }
+</style>
+</head>
+<body>
+<h1>Join with which account?</h1>
+<ul id="choices"></ul>
+<script>
+  (function () {
+    const choices = window.__COOEE_CHOICES__ || [];
+    // Rust sizes the window from these, so the page takes its heights from them too.
+    const layout = window.__COOEE_CHOOSER_LAYOUT__ || {};
+    document.documentElement.style.setProperty("--header", layout.header + "px");
+    document.documentElement.style.setProperty("--row", layout.row + "px");
+    const choose = (name) =>
+      window.__TAURI_INTERNALS__?.invoke("choose_profile", { name });
+
+    const list = document.getElementById("choices");
+    const buttons = choices.map((c, i) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      const badge = document.createElement("span");
+      badge.className = i < 9 ? "badge" : "badge none";
+      badge.textContent = i < 9 ? String(i + 1) : "";
+      const text = document.createElement("span");
+      text.className = "text";
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = c.name;
+      text.appendChild(name);
+      if (c.account != null) {
+        const account = document.createElement("span");
+        account.className = "account";
+        account.textContent = c.account;
+        text.appendChild(account);
+      }
+      b.append(badge, text);
+      b.addEventListener("click", () => choose(c.name));
+      li.appendChild(b);
+      list.appendChild(li);
+      return b;
+    });
+
+    const move = (step) => {
+      const at = buttons.indexOf(document.activeElement);
+      const next = at < 0 ? 0 : Math.min(Math.max(at + step, 0), buttons.length - 1);
+      buttons[next]?.focus();
+    };
+
+    document.addEventListener("keydown", (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        choose(null);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        move(1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        move(-1);
+      } else if (/^[1-9]$/.test(e.key)) {
+        const c = choices[Number(e.key) - 1];
+        if (c) {
+          e.preventDefault();
+          choose(c.name);
+        }
+      }
+    });
+
+    buttons[0]?.focus();
+  })();
+</script>
+</body>
+</html>

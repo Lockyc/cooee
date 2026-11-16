@@ -1,4 +1,5 @@
 mod bridge;
+mod chooser;
 mod deeplink;
 mod meet;
 mod popups;
@@ -26,6 +27,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(config)
         .manage(meet::MeetState::default())
+        .manage(chooser::Pending::default())
         .manage(spots::Hotkeys::default())
         .manage(spots::Placed::default())
         .manage(spots::ShareMinimised::default())
@@ -35,6 +37,7 @@ pub fn run() {
             bridge::share_picker_closed,
             bridge::share_window,
             bridge::show_meet,
+            chooser::choose_profile,
         ])
         .setup(move |app| {
             #[cfg(target_os = "macos")]

@@ -5,7 +5,8 @@ fn main() {
     shell_core::materialize_scripts(std::path::Path::new("../scripts"))
         .expect("materialize shell-core scripts");
     // Declaring the app's commands makes each one permission-gated (`allow-<command>`), so
-    // capabilities/meet.json can grant exactly these to Meet's remote origin.
+    // capabilities/meet.json can grant exactly these to Meet's remote origin and
+    // capabilities/chooser.json the pick to the local chooser page.
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "meet_state",
@@ -13,6 +14,7 @@ fn main() {
             "share_picker_closed",
             "share_window",
             "show_meet",
+            "choose_profile",
         ]),
     ))
     .expect("tauri build");

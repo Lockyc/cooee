@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "chooser",
+  "description": "cooee's local account chooser page may report which profile joins the pending Meet link, and nothing else.",
+  "windows": ["chooser-*"],
+  "permissions": ["allow-choose-profile"]
+}

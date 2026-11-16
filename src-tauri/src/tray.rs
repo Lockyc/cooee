@@ -3,7 +3,7 @@
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
+use tauri_plugin_dialog::DialogExt;
 use url::Url;
 
 use cooee_config::{parse_meet_link, profile_for_link, Config, Profile, ProfilePick};
@@ -163,19 +163,6 @@ fn on_menu(app: &AppHandle, id: &str) {
     }
 }
 
-fn set_clipboard(text: &str) {
-    use std::io::Write;
-    if let Ok(mut child) = std::process::Command::new("pbcopy")
-        .stdin(std::process::Stdio::piped())
-        .spawn()
-    {
-        if let Some(mut stdin) = child.stdin.take() {
-            let _ = stdin.write_all(text.as_bytes());
-        }
-        let _ = child.wait();
-    }
-}
-
 fn clipboard_text() -> String {
     std::process::Command::new("pbpaste")
         .output()
@@ -194,99 +181,10 @@ fn join_from_clipboard(app: &AppHandle, cfg: &Config, forced: Option<&Profile>) 
         .unwrap_or_else(|| profile_for_link(cfg, &link));
     match pick {
         ProfilePick::Profile(p) => meet::open_meet(app, p, &link.url),
-        ProfilePick::Ask => ask_profile(app, cfg, link.url),
+        ProfilePick::Ask => crate::chooser::ask(app, cfg, link.url),
     }
-}
-
-/// The dialog's cancel button: "Cancel", unless a profile has that name.
-fn cancel_label(names: &[String]) -> String {
-    ["Cancel", "Don't Join", "Not Now"]
-        .into_iter()
-        .find(|l| !names.iter().any(|n| n == l))
-        .unwrap_or("Cancel")
-        .to_string()
-}
-
-/// The profile a two-profile dialog's answer picks; the cancel button picks none.
-fn chosen_profile(res: MessageDialogResult, names: &[String]) -> Option<String> {
-    match res {
-        MessageDialogResult::Custom(label) => names.iter().find(|n| **n == label).cloned(),
-        MessageDialogResult::Yes => names.first().cloned(),
-        MessageDialogResult::No => names.get(1).cloned(),
-        _ => None,
-    }
-}
-
-/// Ask which profile joins `url` (a link whose account matched no single profile).
-pub fn ask_profile(app: &AppHandle, cfg: &Config, url: Url) {
-    let names: Vec<String> = cfg.profiles.iter().map(|p| p.name.clone()).collect();
-    let buttons = match names.as_slice() {
-        [a, b] => {
-            MessageDialogButtons::YesNoCancelCustom(a.clone(), b.clone(), cancel_label(&names))
-        }
-        _ => {
-            // A dialog holds at most two choices: hand the link to the menu's per-profile join.
-            set_clipboard(url.as_str());
-            tell(
-                app,
-                "The link is on the clipboard: pick a profile under Join Clipboard Link In.",
-            );
-            return;
-        }
-    };
-    let app2 = app.clone();
-    app.dialog()
-        .message("Which profile should join this meeting?")
-        .title("cooee")
-        .buttons(buttons)
-        .show_with_result(move |res| {
-            let Some(name) = chosen_profile(res, &names) else {
-                return;
-            };
-            let app3 = app2.clone();
-            let _ = app2.run_on_main_thread(move || {
-                let cfg = app3.state::<Config>();
-                if let Some(p) = cfg.profiles.iter().find(|p| p.name == name) {
-                    meet::open_meet(&app3, p, &url);
-                }
-            });
-        });
 }
 
 fn tell(app: &AppHandle, message: &str) {
     app.dialog().message(message).title("cooee").show(|_| {});
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn names(a: &str, b: &str) -> Vec<String> {
-        vec![a.into(), b.into()]
-    }
-
-    #[test]
-    fn cancel_button_never_shares_a_profile_name() {
-        assert_eq!(cancel_label(&names("work", "home")), "Cancel");
-        assert_ne!(cancel_label(&names("Cancel", "home")), "Cancel");
-    }
-
-    #[test]
-    fn a_profile_named_cancel_is_not_joined_by_cancelling() {
-        let n = names("Cancel", "home");
-        let cancel = cancel_label(&n);
-        assert_eq!(
-            chosen_profile(MessageDialogResult::Custom(cancel), &n),
-            None
-        );
-        assert_eq!(
-            chosen_profile(MessageDialogResult::Custom("Cancel".into()), &n).as_deref(),
-            Some("Cancel")
-        );
-        assert_eq!(
-            chosen_profile(MessageDialogResult::Custom("home".into()), &n).as_deref(),
-            Some("home")
-        );
-        assert_eq!(chosen_profile(MessageDialogResult::Cancel, &n), None);
-    }
 }
