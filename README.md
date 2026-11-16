@@ -36,7 +36,7 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
   participants with their cameras on, re-flowed to fit the window, and the rest as name chips.
   Before anyone else arrives it says **Waiting for others**, and it pulses when someone joins.
 - **The controls window** is open for the whole call: your own camera, mirrored, beside **Mute**,
-  **Camera** and **Leave**. A button turns red while that device is off. It sits flush against the
+  **Camera**, **Show Meet** (brings the Meet window to the front) and **Leave**. A button turns red while that device is off. It sits flush against the
   right of the faces window and follows it, switching to its left when the screen has no room on
   the right. It reopens at the size you last gave it.
 - **The share window** opens when someone else presents and closes when they stop, showing their

@@ -31,7 +31,7 @@ config-path resolution.
   - `meet-adapter.js` is the **only code that knows Meet's DOM**. It publishes a neutral model on
     `window.__cooee` (`model`, `subscribe`, `act`, `dump`) and reports call state over IPC.
   - `popup.js` is the popup lifecycle and media; `faces.js` (other people's faces only),
-    `controls.js` (your preview, Mute / Camera / Leave) and `share.js` (another participant's
+    `controls.js` (your preview, Mute / Camera / Show Meet / Leave) and `share.js` (another participant's
     screen) each render one popup from that model alone.
 
   Supporting another meeting platform means a second adapter that emits the same model.

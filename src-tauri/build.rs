@@ -12,6 +12,7 @@ fn main() {
             "adapter_dump",
             "share_picker_closed",
             "share_window",
+            "show_meet",
         ]),
     ))
     .expect("tauri build");

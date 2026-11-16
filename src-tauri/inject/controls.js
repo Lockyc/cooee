@@ -1,6 +1,6 @@
-// cooee's controls window: your own camera preview, mirrored, beside Mute / Camera / Leave. Knows
-// nothing about Meet: it renders the adapter's model (window.__cooee) and acts through
-// `__cooee.act`, in the popup popup.js opens.
+// cooee's controls window: your own camera preview, mirrored, beside Mute / Camera / Show Meet /
+// Leave. Knows nothing about Meet: it renders the adapter's model (window.__cooee) and acts
+// through `__cooee.act`, in the popup popup.js opens. Show Meet is cooee's own `show_meet` command.
 (function () {
   if (window.top !== window || location.host !== "meet.google.com") return;
 
@@ -41,6 +41,13 @@
     };
     const mic = button("mic");
     const camera = button("camera");
+    const meet = d.createElement("button");
+    meet.textContent = "Show Meet";
+    meet.onclick = () =>
+      window.__TAURI_INTERNALS__
+        ?.invoke("show_meet")
+        .catch((e) => console.warn("cooee: show meet", e));
+    buttons.append(meet);
     const leave = button("leave");
     leave.className = "leave";
     leave.textContent = "Leave";

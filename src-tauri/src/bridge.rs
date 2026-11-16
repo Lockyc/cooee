@@ -42,6 +42,16 @@ pub fn share_window(app: AppHandle, action: String) -> Result<bool, String> {
     crate::spots::share_window(&app, &action)
 }
 
+/// The controls window's Show Meet button: bring the Meet window to the front.
+#[tauri::command]
+pub fn show_meet(app: AppHandle) {
+    if let Some(w) = crate::meet::meet_window(&app) {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
 /// Write the adapter's layout snapshot to `<app data>/adapter-dump.json` and reveal it — once per
 /// tray request; an unrequested call is ignored.
 #[tauri::command]

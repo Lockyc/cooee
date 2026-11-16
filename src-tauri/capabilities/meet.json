@@ -1,13 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "meet",
-  "description": "cooee's scripts injected into meet.google.com: the adapter reports call state, saves layout snapshots and says when a screen-share picker closes, and the share window's toolbar sizes and minimises it. Nothing on any other origin may call these.",
+  "description": "cooee's scripts injected into meet.google.com: the adapter reports call state, saves layout snapshots and says when a screen-share picker closes, the share window's toolbar sizes and minimises it, and the controls window raises the Meet window. Nothing on any other origin may call these.",
   "windows": ["meet"],
   "remote": { "urls": ["https://meet.google.com/*"] },
   "permissions": [
     "allow-meet-state",
     "allow-adapter-dump",
     "allow-share-picker-closed",
-    "allow-share-window"
+    "allow-share-window",
+    "allow-show-meet"
   ]
 }

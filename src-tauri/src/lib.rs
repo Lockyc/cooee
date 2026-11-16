@@ -34,6 +34,7 @@ pub fn run() {
             bridge::adapter_dump,
             bridge::share_picker_closed,
             bridge::share_window,
+            bridge::show_meet,
         ])
         .setup(move |app| {
             #[cfg(target_os = "macos")]
