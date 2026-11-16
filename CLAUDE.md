@@ -23,7 +23,8 @@ config-path resolution.
 - `src-tauri/src/` — the app: `meet.rs` (the one Meet window and its navigation policy),
   `popups.rs` (the faces, controls and share popups made always-on-top, and when each closes),
   `spots.rs` (where popups go, global hotkeys),
-  `tray.rs` (menu bar), `bridge.rs` (commands the injected scripts call), `deeplink.rs`,
+  `tray.rs` (menu bar), `chooser.rs` (the "which account?" window, page `src/chooser.html`),
+  `bridge.rs` (commands the injected scripts call), `deeplink.rs`,
   `screenshare.rs` (which picker Meet's Share button opens, and the notifications that
   show darkfield's canvas window while the picker is open) and `winlog.rs` (the
   `window-events.log` diagnostic).

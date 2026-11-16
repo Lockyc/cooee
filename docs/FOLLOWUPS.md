@@ -18,10 +18,6 @@ links:
   app data dir for the resize's source and for which window held focus when cooee activated.
 - **Confirm shared-stream rendering in the popups.** If a popup shows black, switch `RENDER` to
   `"canvas"` in `inject/popup.js`.
-- **Manicule target.** Manicule should route `meet.google.com` links to cooee, reading
-  `profiles.json` and launching
-  `open -b au.lsjc.cooee 'cooee://join?profile=<name>&url=<link>'`. That change belongs in
-  `lockyc/manicule`, as a new target kind beside flotilla's.
 - **Calendar list in the menu bar** (today's meetings, each with Join). Deferred until there is a
   calendar source covering every profile's account. One candidate is macOS EventKit, once each
   account is added to Calendar.app.
