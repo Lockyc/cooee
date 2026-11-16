@@ -11,7 +11,7 @@ const MANIFEST_VERSION: u32 = 1;
 
 #[derive(Debug, PartialEq)]
 pub struct JoinRequest {
-    /// The profile the router chose; `None` lets the link's `authuser` decide.
+    /// The profile the router chose; `None`, or a name no profile has, lets the link's `authuser` decide.
     pub profile: Option<String>,
     pub link: MeetLink,
 }
