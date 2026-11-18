@@ -396,6 +396,79 @@ mod tests {
 }
 
 #[cfg(test)]
+mod html_sink_tests {
+    use super::INJECTED_JS;
+
+    const CHOOSER_HTML: &str = include_str!("../../src/chooser.html");
+
+    /// Lines of `src` (outside `//` comment lines) that use a sink WebKit rejects silently here:
+    /// an HTML-string write, which throws under Meet's inherited `require-trusted-types-for
+    /// 'script'` CSP, or a `window.open` with no URL, which WebKit reports as an empty string
+    /// Tauri denies. Reading `outerHTML` (the adapter's dump) is fine.
+    fn html_sinks(src: &str) -> Vec<(usize, &str)> {
+        let assigns = |line: &str, prop: &str| {
+            line.match_indices(prop).any(|(i, _)| {
+                let rest = line[i + prop.len()..].trim_start();
+                (rest.starts_with('=') && !rest.starts_with("==")) || rest.starts_with("+=")
+            })
+        };
+        src.lines()
+            .enumerate()
+            .filter(|(_, line)| {
+                let t = line.trim_start();
+                !(t.starts_with("//") || t.starts_with('*') || t.starts_with("/*"))
+            })
+            .filter(|(_, line)| {
+                assigns(line, "innerHTML")
+                    || assigns(line, "outerHTML")
+                    || line.contains("insertAdjacentHTML")
+                    || line.contains("document.write")
+                    || [
+                        "window.open()",
+                        "window.open(\"\"",
+                        "window.open(''",
+                        "window.open(``",
+                    ]
+                    .iter()
+                    .any(|p| line.contains(p))
+            })
+            .map(|(n, line)| (n + 1, line))
+            .collect()
+    }
+
+    #[test]
+    fn no_inject_script_assigns_html_strings() {
+        for (i, src) in INJECTED_JS.iter().enumerate() {
+            assert_eq!(html_sinks(src), vec![], "INJECTED_JS[{i}]");
+        }
+        assert_eq!(html_sinks(CHOOSER_HTML), vec![], "src/chooser.html");
+    }
+
+    #[test]
+    fn the_sink_scan_fires_on_each_sink() {
+        for bad in [
+            "d.body.innerHTML = `<div>`;",
+            "el.innerHTML += x;",
+            "el.outerHTML=x;",
+            "el.insertAdjacentHTML('beforeend', x);",
+            "document.write(x);",
+            "const p = window.open(\"\", \"cooee-faces\");",
+            "const p = window.open();",
+        ] {
+            assert_eq!(html_sinks(bad).len(), 1, "{bad}");
+        }
+        for ok in [
+            "html: t.outerHTML.replace(/x/g, \"\"),",
+            "if (el.innerHTML === \"\") return;",
+            "// window.open(\"\") reports an empty URL",
+            "popup = window.open(`about:blank#${kind}`, `cooee-${kind}`);",
+        ] {
+            assert_eq!(html_sinks(ok), vec![], "{ok}");
+        }
+    }
+}
+
+#[cfg(test)]
 mod snapshot_tests {
     use super::*;
 
