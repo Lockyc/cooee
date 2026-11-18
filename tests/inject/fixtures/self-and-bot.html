@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- A call with you and a notetaker bot. Tile shape from a Meet layout snapshot (adapter dump):
+     each tile renders its stream through two <video>s, the first display:none; your tile carries
+     the Reframe control, whose icon glyph is aria-hidden text inside a .notranslate. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      .tile { position: relative; width: 320px; height: 180px; }
+      video { width: 320px; height: 180px; }
+    </style>
+  </head>
+  <body>
+    <div class="tile" data-participant-id="spaces/fixture/devices/1">
+      <div class="p2hjYe">
+        <video autoplay playsinline muted style="display: none"></video>
+        <video autoplay playsinline muted></video>
+      </div>
+      <button aria-label="Reframe"><i class="google-symbols notranslate" aria-hidden="true">frame_person</i></button>
+      <span class="notranslate">Alex Example</span>
+    </div>
+    <div class="tile" data-participant-id="spaces/fixture/devices/2">
+      <div class="p2hjYe">
+        <video autoplay playsinline muted style="display: none"></video>
+        <video autoplay playsinline muted></video>
+      </div>
+      <span class="notranslate">Fireflies.ai Notetaker</span>
+    </div>
+    <button aria-label="Turn off microphone"></button>
+    <button aria-label="Turn off camera"></button>
+    <button aria-label="Leave call"></button>
+    <script>
+      // Meet's part: capture the camera through the prototype, and play each tile's stream into
+      // both of its <video>s.
+      const play = (tile, stream) => {
+        for (const v of document.querySelectorAll(`[data-participant-id="${tile}"] video`)) {
+          v.srcObject = stream;
+          v.play().catch(() => {});
+        }
+      };
+      MediaDevices.prototype.getUserMedia
+        .call(navigator.mediaDevices, { video: true, audio: true })
+        .then((s) => play("spaces/fixture/devices/1", s));
+      play("spaces/fixture/devices/2", window.__fake.stream("notetaker card"));
+    </script>
+  </body>
+</html>

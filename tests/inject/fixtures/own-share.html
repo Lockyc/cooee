@@ -1,0 +1,41 @@
+<!doctype html>
+<!-- You share your screen. Meet renders your share as a presentation tile whose label doesn't say
+     it is yours, and requests the screen through MediaDevices.prototype, not the instance. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      video { width: 320px; height: 180px; }
+    </style>
+  </head>
+  <body>
+    <div data-participant-id="spaces/fixture/devices/1">
+      <video autoplay playsinline muted></video>
+      <span class="notranslate">Alex Example</span>
+    </div>
+    <div data-participant-id="spaces/fixture/devices/1/presentation" aria-label="Presentation">
+      <video autoplay playsinline muted></video>
+      <span class="notranslate">Alex Example</span>
+    </div>
+    <div data-participant-id="spaces/fixture/devices/3">
+      <video autoplay playsinline muted></video>
+      <span class="notranslate">Sam Sample</span>
+    </div>
+    <button aria-label="Turn off microphone"></button>
+    <button aria-label="Turn off camera"></button>
+    <button aria-label="Leave call"></button>
+    <script>
+      const play = (tile, stream) => {
+        const v = document.querySelector(`[data-participant-id="${tile}"] video`);
+        v.srcObject = stream;
+        v.play().catch(() => {});
+      };
+      const md = navigator.mediaDevices;
+      MediaDevices.prototype.getUserMedia.call(md, { video: true }).then((s) => play("spaces/fixture/devices/1", s));
+      play("spaces/fixture/devices/3", window.__fake.stream("sam"));
+      MediaDevices.prototype.getDisplayMedia
+        .call(md, { video: true })
+        .then((s) => play("spaces/fixture/devices/1/presentation", s));
+    </script>
+  </body>
+</html>
