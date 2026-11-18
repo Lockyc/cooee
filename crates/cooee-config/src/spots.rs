@@ -747,14 +747,21 @@ mod property_tests {
         }
 
         #[test]
-        fn the_docked_controls_stay_on_one_screen(
+        fn the_docked_controls_sit_flush_on_one_screen(
             faces in rect(),
             screens in screens(),
             size in (100i32..900, 80i32..500),
         ) {
             let faces = clamp_to_screens(faces, &screens);
-            let docked = dock_controls(faces, (size.0.into(), size.1.into()), &screens);
+            let w = f64::from(size.0);
+            let docked = dock_controls(faces, (w, size.1.into()), &screens);
             prop_assert!(on_one_screen(docked, &screens), "{docked:?}");
+            let s = screen_of(faces, &screens).unwrap();
+            if faces.x + faces.w + w <= s.x + s.w {
+                prop_assert_eq!(docked.x, faces.x + faces.w, "flush right of {:?}", faces);
+            } else if faces.x - w >= s.x {
+                prop_assert_eq!(docked.x + docked.w, faces.x, "flush left of {:?}", faces);
+            }
         }
     }
 }
