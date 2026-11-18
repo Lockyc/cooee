@@ -21,7 +21,7 @@ async function openCall(page) {
 
 const popups = (page) => page.evaluate(() => window.__cooeePopups.diag());
 
-test("a meet_state the IPC rejects is sent again, unchanged, on the next tick", async ({ page }) => {
+test("a meet_state the IPC rejects is sent again, unchanged, on the next tick, and only then", async ({ page }) => {
   await openCall(page);
   const before = (await ipcCalls(page, "meet_state")).length;
 
@@ -30,7 +30,8 @@ test("a meet_state the IPC rejects is sent again, unchanged, on the next tick", 
     document.querySelector('[aria-label="Leave call"]').remove();
   });
   await page.clock.runFor(300); // the mutation's refresh: reported, rejected
-  await page.clock.runFor(1000); // the next tick
+  await page.clock.runFor(1000); // the next tick: resent, accepted
+  await page.clock.runFor(2000); // later ticks: nothing changed, nothing sent
 
   const sent = (await ipcCalls(page, "meet_state")).slice(before);
   expect(sent).toHaveLength(2);
