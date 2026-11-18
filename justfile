@@ -16,7 +16,7 @@ run: debug-app
     #!/usr/bin/env bash
     set -euo pipefail
     pkill -x cooee || true
-    open -n --env COOEE_CONFIG="{{justfile_directory()}}/examples/config.toml" target/debug/bundle/macos/cooee.app
+    open -n ${SHELL_CORE_UNFOCUSED:+-g -j --env SHELL_CORE_UNFOCUSED=1} --env COOEE_CONFIG="{{justfile_directory()}}/examples/config.toml" target/debug/bundle/macos/cooee.app
 
 # Build the debug .app bundle
 [group("dev")]

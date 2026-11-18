@@ -259,8 +259,7 @@ pub fn share_window(app: &AppHandle, action: &str) -> Result<bool, String> {
     };
     *state.0.lock().unwrap() = None;
     place_tracked(app, &w, r);
-    let _ = w.show();
-    let _ = w.set_focus();
+    shell_core::focus::bring_forward(&w);
     Ok(false)
 }
 
@@ -377,10 +376,7 @@ fn run(app: &AppHandle, action: Action) {
             Some(m) if m.is_visible().unwrap_or(false) => {
                 let _ = m.hide();
             }
-            Some(m) => {
-                let _ = m.show();
-                let _ = m.set_focus();
-            }
+            Some(m) => shell_core::focus::bring_forward(&m),
             None => {
                 let profile = app.state::<Config>().profiles[0].clone();
                 meet::open_meet(app, &profile, &url::Url::parse(HOME_URL).unwrap());

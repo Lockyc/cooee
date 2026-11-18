@@ -46,9 +46,7 @@ pub fn share_window(app: AppHandle, action: String) -> Result<bool, String> {
 #[tauri::command]
 pub fn show_meet(app: AppHandle) {
     if let Some(w) = crate::meet::meet_window(&app) {
-        let _ = w.unminimize();
-        let _ = w.show();
-        let _ = w.set_focus();
+        shell_core::focus::bring_forward(&w);
     }
 }
 

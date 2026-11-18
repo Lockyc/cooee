@@ -122,16 +122,14 @@ pub fn ask(app: &AppHandle, cfg: &Config, url: Url) {
         .always_on_top(true)
         .visible_on_all_workspaces(true)
         .skip_taskbar(true)
-        .focused(true)
+        .focused(shell_core::focus::focused())
         .initialization_script(&script);
     match origin_at_cursor(app, (WIDTH, height)) {
         Some((x, y)) => builder = builder.position(x, y),
         None => builder = builder.center(),
     }
     match builder.build() {
-        Ok(window) => {
-            let _ = window.set_focus();
-        }
+        Ok(window) => shell_core::focus::bring_forward(&window),
         Err(e) => eprintln!("cooee: can't open the account chooser: {e}"),
     }
 }

@@ -133,8 +133,7 @@ pub fn meet_window(app: &AppHandle) -> Option<WebviewWindow> {
 pub fn open_meet(app: &AppHandle, profile: &Profile, url: &Url) {
     let state = app.state::<MeetState>();
     if let Some(w) = meet_window(app) {
-        let _ = w.show();
-        let _ = w.set_focus();
+        shell_core::focus::bring_forward(&w);
         let call = state.call();
         if must_ask_before_replacing(call, call.capturing) {
             let (app, profile, url) = (app.clone(), profile.clone(), url.clone());
@@ -195,6 +194,7 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
     let mut builder = WebviewWindowBuilder::new(app, MEET_LABEL, WebviewUrl::External(url.clone()))
         .title(format!("Meet — {}", profile.name))
         .inner_size(1200.0, 820.0)
+        .focused(shell_core::focus::focused())
         .user_agent(shell_core::web::desktop_ua())
         .data_store_identifier(shell_core::web::session::data_store_id(&profile.name));
     for js in INJECTED_JS {
@@ -240,7 +240,7 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
     allow_scripted_popups(&w)?;
     crate::screenshare::install(app, &w)?;
     set_regular_app(app, true);
-    let _ = w.set_focus();
+    shell_core::focus::bring_forward(&w);
     let app = app.clone();
     let logged = w.clone();
     w.on_window_event(move |e| {

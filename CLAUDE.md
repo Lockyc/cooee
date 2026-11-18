@@ -66,7 +66,8 @@ user only hides a popup.
   except the marketing redirect. Links Meet opens in a new window go to the browser from
   `on_new_window`.
 - **Camera and mic need a bundled `.app`** with Info.plist usage strings, so `just run` builds a
-  debug bundle. `cargo run` can't use the camera.
+  debug bundle. `cargo run` can't use the camera. An agent runs it as `SHELL_CORE_UNFOCUSED=1 just
+  run`, which never takes the operator's focus; it still quits any running cooee first.
 - **`cooee://` links arrive as `RunEvent::Opened`.** `Info.plist` declares the scheme, the same
   way flotilla does. `tauri-plugin-deep-link` never received the event here.
 - **Spot geometry is in logical points.** Physical pixels are not one space on macOS: tao scales
