@@ -11,3 +11,6 @@ toml = "0.8"
 url = "2"
 # Shared config-path resolution + house TOML formatter, pinned by rev in lockstep with the siblings.
 config-core = { git = "https://github.com/Lockyc/config-core", rev = "22feffa59ab66525ea061b5053beeea30d6f27eb" }
+
+[dev-dependencies]
+proptest = { version = "=1.12.0", default-features = false, features = ["std"] }

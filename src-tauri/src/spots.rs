@@ -541,6 +541,87 @@ mod tests {
 }
 
 #[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    const SCALES: [f64; 3] = [1.0, 1.5, 2.0];
+
+    fn rect() -> impl Strategy<Value = Rect> {
+        (-3000i32..6000, -1500i32..3000, 800i32..4000, 600i32..2400).prop_map(|(x, y, w, h)| Rect {
+            x: x.into(),
+            y: y.into(),
+            w: w.into(),
+            h: h.into(),
+        })
+    }
+
+    /// 1 to 4 screens (identical ones included), exactly one of them the main display, listed
+    /// in two independent orders.
+    fn screens_in_two_orders() -> impl Strategy<Value = (Vec<(Rect, bool)>, Vec<(Rect, bool)>)> {
+        prop::collection::vec(
+            prop_oneof![
+                rect(),
+                Just(Rect {
+                    x: 0.0,
+                    y: 0.0,
+                    w: 3840.0,
+                    h: 2160.0
+                })
+            ],
+            1..=4,
+        )
+        .prop_flat_map(|rects| {
+            let n = rects.len();
+            (Just(rects), 0..n)
+        })
+        .prop_map(|(rects, main)| {
+            rects
+                .into_iter()
+                .enumerate()
+                .map(|(i, rect)| (rect, i == main))
+                .collect::<Vec<_>>()
+        })
+        .prop_flat_map(|s| (Just(s.clone()).prop_shuffle(), Just(s).prop_shuffle()))
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn main_screen_ignores_monitor_order((a, b) in screens_in_two_orders()) {
+            let screens = |v: &[(Rect, bool)]| {
+                v.iter().map(|&(rect, primary)| Screen { rect, primary }).collect::<Vec<_>>()
+            };
+            let main = a.iter().find(|s| s.1).unwrap().0;
+            for order in [screens(&a), screens(&b)] {
+                let got = main_screen(&order).unwrap();
+                prop_assert!(got.primary);
+                prop_assert_eq!(got.rect, main);
+            }
+        }
+
+        /// A rect placed in points, applied in a monitor's physical pixels (tao scales by that
+        /// monitor's own factor) and read back through `window_rect`, is the rect placed.
+        #[test]
+        fn a_placed_rect_round_trips_through_physical_pixels(
+            (x, y, w, h) in (-3000i32..6000, -1500i32..3000, 100i32..4000, 100i32..2400),
+            scale in prop::sample::select(SCALES.to_vec()),
+        ) {
+            // Even points, so a 1.5 scale lands on whole pixels, as macOS's do.
+            let placed = Rect { x: (2 * x).into(), y: (2 * y).into(), w: (2 * w).into(), h: (2 * h).into() };
+            let px = |v: f64| (v * scale).round();
+            let back = window_rect(
+                PhysicalPosition::new(px(placed.x) as i32, px(placed.y) as i32),
+                PhysicalSize::new(px(placed.w) as u32, px(placed.h) as u32),
+                scale,
+            );
+            prop_assert_eq!(back, placed);
+        }
+    }
+}
+
+#[cfg(test)]
 mod menu_tests {
     use super::*;
 

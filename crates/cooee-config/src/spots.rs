@@ -658,3 +658,103 @@ mod tests {
         assert_eq!(Spots::from_json("{\"version\":99}"), Spots::default());
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    /// 1 to 3 screens side by side, left to right, of mixed sizes and vertical offsets.
+    fn screens() -> impl Strategy<Value = Vec<Rect>> {
+        (
+            -4000i32..0,
+            prop::collection::vec((800i32..4000, 600i32..2400, -500i32..500), 1..=3),
+        )
+            .prop_map(|(mut x, dims)| {
+                dims.into_iter()
+                    .map(|(w, h, y)| {
+                        let s = Rect {
+                            x: x.into(),
+                            y: y.into(),
+                            w: w.into(),
+                            h: h.into(),
+                        };
+                        x += w;
+                        s
+                    })
+                    .collect()
+            })
+    }
+
+    fn rect() -> impl Strategy<Value = Rect> {
+        (-9000i32..12000, -4000i32..5000, 1i32..5000, 1i32..3000).prop_map(|(x, y, w, h)| Rect {
+            x: x.into(),
+            y: y.into(),
+            w: w.into(),
+            h: h.into(),
+        })
+    }
+
+    /// Wholly inside `s`, to within float rounding (a fractional share size rounds by an ulp).
+    fn within(r: Rect, s: &Rect) -> bool {
+        const EPS: f64 = 1e-6;
+        r.x >= s.x - EPS
+            && r.y >= s.y - EPS
+            && r.x + r.w <= s.x + s.w + EPS
+            && r.y + r.h <= s.y + s.h + EPS
+    }
+
+    fn on_one_screen(r: Rect, screens: &[Rect]) -> bool {
+        screens.iter().any(|s| within(r, s))
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn clamp_to_screens_is_idempotent_and_on_screen(r in rect(), screens in screens()) {
+            let c = clamp_to_screens(r, &screens);
+            prop_assert!(on_one_screen(c, &screens), "{c:?} on {screens:?}");
+            prop_assert_eq!(clamp_to_screens(c, &screens), c);
+        }
+
+        #[test]
+        fn clamp_leaves_an_on_screen_rect_alone(
+            r in rect(),
+            screens in screens(),
+            pick in any::<prop::sample::Index>(),
+            (fx, fy) in (0.0..=1.0f64, 0.0..=1.0f64),
+        ) {
+            let s = *pick.get(&screens);
+            let (w, h) = (r.w.min(s.w), r.h.min(s.h));
+            let inside = Rect {
+                x: (s.x + fx * (s.w - w)).floor(),
+                y: (s.y + fy * (s.h - h)).floor(),
+                w,
+                h,
+            };
+            prop_assert_eq!(clamp_to_screens(inside, &screens), inside);
+        }
+
+        #[test]
+        fn share_sizes_and_the_tile_stay_on_one_screen(r in rect(), screens in screens()) {
+            for size in [ShareSize::Small, ShareSize::Medium, ShareSize::Large, ShareSize::Fill] {
+                let sized = share_sized(r, size, &screens);
+                prop_assert!(on_one_screen(sized, &screens), "{size:?}: {sized:?}");
+            }
+            let tile = share_tile(r, &screens);
+            prop_assert!(on_one_screen(tile, &screens), "tile: {tile:?}");
+        }
+
+        #[test]
+        fn the_docked_controls_stay_on_one_screen(
+            faces in rect(),
+            screens in screens(),
+            size in (100i32..900, 80i32..500),
+        ) {
+            let faces = clamp_to_screens(faces, &screens);
+            let docked = dock_controls(faces, (size.0.into(), size.1.into()), &screens);
+            prop_assert!(on_one_screen(docked, &screens), "{docked:?}");
+        }
+    }
+}
