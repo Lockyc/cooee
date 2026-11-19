@@ -116,6 +116,12 @@ which is what a fix is made from. Faces show no cue for who is speaking.
 
 Early and not yet released; in use in live calls. What's next: [docs/FOLLOWUPS.md](docs/FOLLOWUPS.md).
 
+## Related
+
+- [darkfield](https://github.com/lockyc/darkfield) — present only the windows you choose; cooee
+  shows its canvas while Meet's window picker is open.
+- [Manicule](https://github.com/lockyc/manicule) — routes Meet links into a cooee profile.
+
 ## Development
 
 ```bash
