@@ -48,7 +48,11 @@ struct Screen {
 
 /// A monitor's physical rect in points: tao reports each monitor's physical origin as its point
 /// origin multiplied by that monitor's own scale.
-fn screen_in_points(pos: PhysicalPosition<i32>, size: PhysicalSize<u32>, scale: f64) -> Rect {
+pub(crate) fn screen_in_points(
+    pos: PhysicalPosition<i32>,
+    size: PhysicalSize<u32>,
+    scale: f64,
+) -> Rect {
     Rect {
         x: pos.x as f64 / scale,
         y: pos.y as f64 / scale,

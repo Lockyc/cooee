@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use url::Url;
 
+use cooee_config::spots::Rect;
 use cooee_config::Config;
 
 use crate::meet;
@@ -50,24 +51,12 @@ pub(crate) fn chooser_height(rows: usize) -> f64 {
 }
 
 /// The window's origin: at the cursor, extending below and right, shifted up and left to stay
-/// inside `area` (x, y, width, height), the cursor's monitor.
-pub(crate) fn chooser_origin(
-    cursor: (f64, f64),
-    size: (f64, f64),
-    area: (f64, f64, f64, f64),
-) -> (f64, f64) {
-    let (ax, ay, aw, ah) = area;
+/// inside `area`, the cursor's monitor.
+pub(crate) fn chooser_origin(cursor: (f64, f64), size: (f64, f64), area: Rect) -> (f64, f64) {
     let fit = |c: f64, len: f64, start: f64, span: f64| c.min(start + span - len).max(start);
-    (fit(cursor.0, size.0, ax, aw), fit(cursor.1, size.1, ay, ah))
-}
-
-/// A fresh label per chooser: a destroyed window's label stays registered until its Destroyed
-/// event, so reusing one label would fail a quick re-ask.
-fn next_label() -> String {
-    static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-    format!(
-        "{LABEL}-{}",
-        N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+    (
+        fit(cursor.0, size.0, area.x, area.w),
+        fit(cursor.1, size.1, area.y, area.h),
     )
 }
 
@@ -80,25 +69,20 @@ fn close(app: &AppHandle) {
 }
 
 /// Where a chooser of `size` opens: by the cursor, inside its monitor's work area, in points.
-/// tao reports the cursor as its point position times the primary monitor's scale, and each
-/// monitor's rect as points times that monitor's own scale.
+/// tao reports the cursor as its point position times the primary monitor's scale; the monitor's
+/// rect converts by `spots::screen_in_points`.
 fn origin_at_cursor(app: &AppHandle, size: (f64, f64)) -> Option<(f64, f64)> {
     let primary_scale = app.primary_monitor().ok()??.scale_factor();
     let c = app.cursor_position().ok()?.to_logical::<f64>(primary_scale);
     let m = app.monitor_from_point(c.x, c.y).ok()??;
-    let (a, s) = (m.work_area(), m.scale_factor());
-    let area = (
-        a.position.x as f64 / s,
-        a.position.y as f64 / s,
-        a.size.width as f64 / s,
-        a.size.height as f64 / s,
-    );
+    let a = m.work_area();
+    let area = crate::spots::screen_in_points(a.position, a.size, m.scale_factor());
     Some(chooser_origin((c.x, c.y), size, area))
 }
 
 /// Ask which profile joins `url`: open the chooser by the cursor, replacing any open one.
 pub fn ask(app: &AppHandle, cfg: &Config, url: Url) {
-    let label = next_label();
+    let label = crate::popups::fresh_label(LABEL);
     app.state::<Pending>().set(label.clone(), url);
     close(app);
     let choices: Vec<serde_json::Value> = cfg
@@ -157,6 +141,10 @@ pub fn choose_profile(app: AppHandle, window: WebviewWindow, name: Option<String
 mod tests {
     use super::*;
 
+    fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
+        Rect { x, y, w, h }
+    }
+
     #[test]
     fn chooser_height_grows_per_row() {
         assert!(chooser_height(3) > chooser_height(2));
@@ -171,7 +159,11 @@ mod tests {
     #[test]
     fn chooser_opens_below_right_of_the_cursor() {
         assert_eq!(
-            chooser_origin((100.0, 100.0), (320.0, 200.0), (0.0, 0.0, 1920.0, 1080.0)),
+            chooser_origin(
+                (100.0, 100.0),
+                (320.0, 200.0),
+                rect(0.0, 0.0, 1920.0, 1080.0)
+            ),
             (100.0, 100.0)
         );
     }
@@ -180,12 +172,20 @@ mod tests {
     fn chooser_stays_on_the_cursors_monitor() {
         // Near the bottom-right corner it shifts up and left to fit.
         assert_eq!(
-            chooser_origin((1900.0, 1070.0), (320.0, 200.0), (0.0, 0.0, 1920.0, 1080.0)),
+            chooser_origin(
+                (1900.0, 1070.0),
+                (320.0, 200.0),
+                rect(0.0, 0.0, 1920.0, 1080.0)
+            ),
             (1600.0, 880.0)
         );
         // A second monitor to the left (negative x).
         assert_eq!(
-            chooser_origin((-10.0, 5.0), (320.0, 200.0), (-1920.0, 0.0, 1920.0, 1080.0)),
+            chooser_origin(
+                (-10.0, 5.0),
+                (320.0, 200.0),
+                rect(-1920.0, 0.0, 1920.0, 1080.0)
+            ),
             (-320.0, 5.0)
         );
     }

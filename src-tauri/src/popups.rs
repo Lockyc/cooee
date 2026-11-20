@@ -46,13 +46,12 @@ impl Popup {
     }
 }
 
-/// A fresh label per popup: a destroyed window's label stays registered until its Destroyed
-/// event, so reusing one label would fail a quick re-open.
-fn next_label(kind: Popup) -> String {
+/// A fresh `<stem>-<n>` label per popup or chooser: a destroyed window's label stays registered
+/// until its Destroyed event, so reusing one label would fail a quick re-open.
+pub(crate) fn fresh_label(stem: &str) -> String {
     static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     format!(
-        "{}-{}",
-        kind.name(),
+        "{stem}-{}",
         N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
     )
 }
@@ -97,7 +96,7 @@ pub fn create(
     close(app, kind);
     let built = WebviewWindowBuilder::new(
         app,
-        next_label(kind),
+        fresh_label(kind.name()),
         WebviewUrl::External(format!("about:blank#{}", kind.name()).parse().unwrap()),
     )
     .window_features(features)
@@ -188,8 +187,8 @@ mod tests {
         // A destroyed window's label stays registered until its Destroyed event, so reusing one
         // label made a quick re-open (a re-share, a rejoin) fail.
         for kind in Popup::ALL {
-            let a = next_label(kind);
-            let b = next_label(kind);
+            let a = fresh_label(kind.name());
+            let b = fresh_label(kind.name());
             assert_ne!(a, b);
             assert_eq!(label_kind(&a), Some(kind));
             assert!(
@@ -199,11 +198,11 @@ mod tests {
         }
         assert_eq!(label_kind("meet"), None);
         assert_eq!(
-            label_kind(&next_label(Popup::Controls)),
+            label_kind(&fresh_label(Popup::Controls.name())),
             Some(Popup::Controls)
         );
         assert_eq!(
-            label_number(Popup::Faces, &next_label(Popup::Controls)),
+            label_number(Popup::Faces, &fresh_label(Popup::Controls.name())),
             None
         );
     }
