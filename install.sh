@@ -69,11 +69,13 @@ echo "→ building release bundle (this takes a few minutes)"
 # 5. Install the built app into /Applications.
 bash scripts/install-app.sh "target/release/bundle/macos/cooee.app"
 
-# 6. Seed the user config from the example (never overwrite an existing one).
+# 6. Seed the user config (never overwrite an existing one): the example with every setting
+#    commented out, so it documents the keys but loads as the defaults — the example's own
+#    profiles are demo accounts that would make every Meet link ask which one to use.
 mkdir -p "$HOME/.config/cooee"
 if [ ! -f "$HOME/.config/cooee/config.toml" ]; then
-  cp examples/config.toml "$HOME/.config/cooee/config.toml"
-  echo "→ seeded ~/.config/cooee/config.toml from the example"
+  sed -E 's/^([[:space:]]*[^#[:space:]])/# \1/' examples/config.toml >"$HOME/.config/cooee/config.toml"
+  echo "→ seeded ~/.config/cooee/config.toml (every setting commented out; defaults apply)"
 else
   echo "→ ~/.config/cooee/config.toml already exists — left untouched"
 fi

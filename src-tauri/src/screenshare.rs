@@ -112,6 +112,8 @@ extern "C-unwind" fn request_display_capture(
         // macOS's picker lists windows as it opens: it waits for darkfield to put its canvas on
         // screen (`pickerReady`), or for READY_TIMEOUT if darkfield never answers.
         Some(app) if d == Decision::WindowPrompt && darkfield_running() => {
+            // A request still waiting is answered now: WebKit raises on a handler dropped uncalled.
+            answer_pending("superseded by a second request");
             *PENDING.lock().unwrap() = Some(Pending(handler, d));
             darkfield(PICKER_WILL_OPEN);
             let app = app.clone();

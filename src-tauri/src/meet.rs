@@ -77,8 +77,8 @@ impl CallState {
 /// Whether replacing the Meet window's page needs the user's OK. A live camera or mic capture
 /// counts as a call even when the adapter reports none, so a Meet redesign that hides the
 /// adapter's in-call marker can't make a join drop a live call silently.
-pub fn must_ask_before_replacing(call: CallState, capture_active: bool) -> bool {
-    call.in_call || capture_active
+pub fn must_ask_before_replacing(call: CallState) -> bool {
+    call.in_call || call.capturing
 }
 
 #[derive(Default)]
@@ -162,7 +162,7 @@ pub fn open_meet(app: &AppHandle, profile: &Profile, url: &Url) {
     if let Some(w) = meet_window(app) {
         shell_core::focus::bring_forward(&w);
         let call = state.call();
-        if must_ask_before_replacing(call, call.capturing) {
+        if must_ask_before_replacing(call) {
             let (app, profile, url) = (app.clone(), profile.clone(), url.clone());
             app.dialog()
                 .message("Leave this call and join the new one?")
@@ -438,18 +438,18 @@ mod tests {
     #[test]
     fn a_live_capture_counts_as_a_call_for_the_join_guard() {
         let out = CallState::default();
-        assert!(!must_ask_before_replacing(out, false));
+        assert!(!must_ask_before_replacing(out));
         assert!(
-            must_ask_before_replacing(out, true),
+            must_ask_before_replacing(CallState {
+                capturing: true,
+                ..out
+            }),
             "adapter lost the call"
         );
-        assert!(must_ask_before_replacing(
-            CallState {
-                in_call: true,
-                ..out
-            },
-            false
-        ));
+        assert!(must_ask_before_replacing(CallState {
+            in_call: true,
+            ..out
+        }));
     }
 
     #[test]
