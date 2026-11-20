@@ -157,7 +157,10 @@ fn on_menu(app: &AppHandle, id: &str) {
         // The adapter runs only on Meet's own host; anywhere else the dump would never come
         // and the request would stay armed for an unrequested one.
         let on_meet = |w: &tauri::WebviewWindow| {
-            w.url().ok().and_then(|u| u.host_str().map(|h| h == MEET_HOST)) == Some(true)
+            w.url()
+                .ok()
+                .and_then(|u| u.host_str().map(|h| h == MEET_HOST))
+                == Some(true)
         };
         match meet::meet_window(app).filter(on_meet) {
             Some(w) => {
