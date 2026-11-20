@@ -21,9 +21,9 @@ pub fn meet_state(
         capturing,
         sharing,
     };
-    let prev = app.state::<MeetState>().swap_call(next);
+    let left = app.state::<MeetState>().report(next);
     crate::popups::close_disallowed(&app, next);
-    if CallState::left(prev, next) {
+    if left {
         let a = app.clone();
         let _ = app.run_on_main_thread(move || crate::meet::go_home(&a));
     }

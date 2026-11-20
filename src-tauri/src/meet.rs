@@ -57,9 +57,20 @@ pub struct CallState {
 }
 
 impl CallState {
-    /// The user just left a call (not merely: the adapter's first report says "not in one").
-    pub fn left(prev: CallState, next: CallState) -> bool {
-        prev.in_call && !next.in_call
+    /// One adapter report against `latched` (this page has been in a call it hasn't left):
+    /// returns the new latch and whether the user just left. The adapter's first "not in one"
+    /// report is no leave. Like the join guard (`must_ask_before_replacing`), a live capture
+    /// counts as still in the call, so a Meet re-render that drops the in-call marker mid-call
+    /// can't send the window home; the latch holds until capture stops too, which after a real
+    /// leave comes a beat after the marker goes.
+    pub fn leave_step(latched: bool, next: CallState) -> (bool, bool) {
+        if next.in_call {
+            (true, false)
+        } else if latched && !next.capturing {
+            (false, true)
+        } else {
+            (latched, false)
+        }
     }
 }
 
@@ -82,6 +93,8 @@ pub struct MeetState {
 struct Inner {
     profile: Option<String>,
     call: CallState,
+    /// This page has been in a call it hasn't left (`CallState::leave_step`).
+    in_call_latch: bool,
     /// An open waiting for the current window to finish closing: a window's label stays taken
     /// until its `Destroyed` event, so the replacement is built from there.
     pending: Option<(Profile, Url)>,
@@ -100,11 +113,23 @@ impl MeetState {
         self.inner.lock().unwrap().call
     }
     pub fn set_call(&self, call: CallState) {
-        self.inner.lock().unwrap().call = call;
+        let mut g = self.inner.lock().unwrap();
+        g.call = call;
+        g.in_call_latch = call.in_call;
     }
-    /// Record the call state and report the previous one.
-    pub fn swap_call(&self, call: CallState) -> CallState {
-        std::mem::replace(&mut self.inner.lock().unwrap().call, call)
+    /// Record an adapter report; returns whether the user just left the call.
+    pub fn report(&self, next: CallState) -> bool {
+        let mut g = self.inner.lock().unwrap();
+        g.call = next;
+        let (latch, left) = CallState::leave_step(g.in_call_latch, next);
+        g.in_call_latch = latch;
+        left
+    }
+    /// The page is navigating away, which ends any call on it; returns whether it was in one.
+    pub fn page_started(&self) -> bool {
+        let mut g = self.inner.lock().unwrap();
+        g.call = CallState::default();
+        std::mem::take(&mut g.in_call_latch)
     }
     fn set_pending(&self, profile: Profile, url: Url) {
         self.inner.lock().unwrap().pending = Some((profile, url));
@@ -113,6 +138,7 @@ impl MeetState {
     fn on_destroyed(&self) -> Option<(Profile, Url)> {
         let mut g = self.inner.lock().unwrap();
         g.call = CallState::default();
+        g.in_call_latch = false;
         g.pending.take()
     }
     fn profile(&self) -> Option<String> {
@@ -122,6 +148,7 @@ impl MeetState {
         let mut g = self.inner.lock().unwrap();
         g.profile = Some(name.to_string());
         g.call = CallState::default();
+        g.in_call_latch = false;
     }
 }
 
@@ -227,10 +254,10 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
         .on_page_load(|w, payload| {
             if payload.event() == PageLoadEvent::Started {
                 let app = w.app_handle().clone();
-                let prev = app.state::<MeetState>().swap_call(CallState::default());
+                let was_in_call = app.state::<MeetState>().page_started();
                 crate::popups::close_all(&app);
                 // Leaving a call by navigating away (Meet's "you left" page): back to home.
-                if CallState::left(prev, CallState::default()) {
+                if was_in_call {
                     let a = app.clone();
                     let _ = app.run_on_main_thread(move || go_home(&a));
                 }
@@ -359,13 +386,53 @@ mod tests {
     fn leaving_is_the_in_call_to_not_in_call_transition() {
         let in_call = CallState {
             in_call: true,
+            capturing: true,
             ..CallState::default()
         };
         let out = CallState::default();
-        assert!(CallState::left(in_call, out));
-        assert!(!CallState::left(out, out), "green room's first report");
-        assert!(!CallState::left(out, in_call));
-        assert!(!CallState::left(in_call, in_call));
+        assert_eq!(CallState::leave_step(true, out), (false, true));
+        assert_eq!(
+            CallState::leave_step(false, out),
+            (false, false),
+            "green room's first report"
+        );
+        assert_eq!(CallState::leave_step(false, in_call), (true, false));
+        assert_eq!(CallState::leave_step(true, in_call), (true, false));
+    }
+
+    #[test]
+    fn a_live_capture_holds_the_call_when_the_in_call_marker_drops() {
+        let state = MeetState::default();
+        let in_call = CallState {
+            in_call: true,
+            capturing: true,
+            ..CallState::default()
+        };
+        let marker_gone = CallState {
+            capturing: true,
+            ..CallState::default()
+        };
+        assert!(!state.report(in_call));
+        assert!(!state.report(marker_gone), "re-render mid-call");
+        assert!(!state.report(in_call), "marker back");
+        assert!(!state.report(marker_gone), "real leave, tracks still live");
+        assert!(state.report(CallState::default()), "tracks stopped");
+        assert!(!state.report(CallState::default()), "left once");
+    }
+
+    #[test]
+    fn navigating_away_mid_call_is_a_leave_even_with_the_marker_gone() {
+        let state = MeetState::default();
+        state.report(CallState {
+            in_call: true,
+            ..CallState::default()
+        });
+        state.report(CallState {
+            capturing: true,
+            ..CallState::default()
+        });
+        assert!(state.page_started());
+        assert!(!state.page_started());
     }
 
     #[test]
