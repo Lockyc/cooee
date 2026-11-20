@@ -11,7 +11,7 @@ Google Meet in its own window, plus an always-on-top window of the **other peopl
 you can snap to where you look: under the webcam while you talk, out of the way in a corner while
 you work. Meet's own pop-out has to be big to show anyone, because it also shows your own screen
 share and gives everyone with their camera off a full-size tile. cooee's faces window shows only
-the people on camera; everyone else is a name chip along the bottom edge.
+the people on camera; everyone else, apart from notetaker bots, is a name chip along the bottom edge.
 
 ## Install
 
@@ -33,7 +33,7 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
 - **Menu-bar app**, with a Dock icon only while the Meet window is open. The menu has **Join Meet
   Link from Clipboard**, one **Open Meet** item per profile, and Diagnostics.
 - **The faces window** opens when you join a call and closes when you leave. It shows the other
-  participants with their cameras on, re-flowed to fit the window, and the rest as name chips.
+  participants with their cameras on, re-flowed to fit the window, and the rest as name chips. Notetaker bots are left out.
   Before anyone else arrives it says **Waiting for others**, and it pulses when someone joins.
 - **The controls window** is open for the whole call: your own camera, mirrored, beside **Mute**,
   **Camera**, **Show Meet** (brings the Meet window to the front) and **Leave**. A button turns red while that device is off. It sits flush against the
