@@ -1,4 +1,5 @@
-# cooee demo config — `just run` points COOEE_CONFIG here. Copy to ~/.config/cooee/config.toml.
+# cooee demo config — `just run` points COOEE_CONFIG here. install.sh seeds
+# ~/.config/cooee/config.toml with a copy of it, every setting commented out.
 
 # Each profile is its own Google sign-in. A Meet link carrying `authuser=<account>` opens in the
 # profile whose account matches.
