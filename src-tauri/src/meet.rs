@@ -300,6 +300,54 @@ fn set_regular_app(app: &AppHandle, regular: bool) {
     });
 }
 
+/// Bring the Meet window forward, shown and focused, if there is one.
+pub fn raise(app: &AppHandle, why: &str) {
+    if let Some(w) = meet_window(app) {
+        crate::winlog::note(app, &format!("meet raised: {why}"));
+        shell_core::focus::bring_forward(&w);
+    }
+}
+
+/// Switching to cooee (⌘-Tab, or anything else that activates it without a click) raises the
+/// Meet window. The popups sit on every Space above other apps, so activation alone would leave
+/// Meet hidden, minimised or on another Space behind them. An activation by a mouse press is a
+/// click on a popup, which keeps the focus it was given.
+#[cfg(target_os = "macos")]
+pub fn raise_on_activate(app: &AppHandle) {
+    use block2::RcBlock;
+    use objc2::{msg_send, runtime::AnyClass, runtime::AnyObject};
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    let app = app.clone();
+    ONCE.call_once(move || unsafe {
+        let (Some(center), Some(string), Some(queue)) = (
+            AnyClass::get(c"NSNotificationCenter"),
+            AnyClass::get(c"NSString"),
+            AnyClass::get(c"NSOperationQueue"),
+        ) else {
+            return;
+        };
+        let center: *mut AnyObject = msg_send![center, defaultCenter];
+        let name: *mut AnyObject = msg_send![
+            string,
+            stringWithUTF8String: c"NSApplicationDidBecomeActiveNotification".as_ptr()
+        ];
+        let main: *mut AnyObject = msg_send![queue, mainQueue];
+        let block = RcBlock::new(move |_note: *mut AnyObject| {
+            let pressed: usize = match AnyClass::get(c"NSEvent") {
+                Some(ev) => msg_send![ev, pressedMouseButtons],
+                None => 0,
+            };
+            if pressed == 0 {
+                raise(&app, "cooee activated");
+            }
+        });
+        let none: *mut AnyObject = std::ptr::null_mut();
+        let token: *mut AnyObject = msg_send![&*center, addObserverForName: name, object: none, queue: main, usingBlock: &*block];
+        // The observer lives as long as cooee.
+        let _: *mut AnyObject = msg_send![&*token, retain];
+    });
+}
+
 /// The adapter opens the faces popup from a DOM observer, not a click, so WebKit must allow
 /// script-initiated `window.open`.
 fn allow_scripted_popups(w: &WebviewWindow) -> tauri::Result<()> {

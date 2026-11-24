@@ -30,7 +30,8 @@ camera and microphone the first time Meet uses them. Each profile (below) signs 
 
 ## Features
 
-- **Menu-bar app**, with a Dock icon only while the Meet window is open. The menu has **Join Meet
+- **Menu-bar app**, with a Dock icon only while the Meet window is open. Switching to cooee
+  (⌘-Tab or the Dock) brings the Meet window forward. The menu has **Join Meet
   Link from Clipboard**, one **Open Meet** item per profile, and Diagnostics.
 - **The faces window** opens when you join a call and closes when you leave. It shows the other
   participants with their cameras on, re-flowed to fit the window, and the rest as name chips. Notetaker bots are left out.

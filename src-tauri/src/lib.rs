@@ -42,6 +42,8 @@ pub fn run() {
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            #[cfg(target_os = "macos")]
+            meet::raise_on_activate(app.handle());
             screenshare::load(app.handle());
             tray::install(app.handle())?;
             spots::register_hotkeys(app.handle())?;
@@ -63,6 +65,9 @@ pub fn run() {
                     deeplink::handle_url(app, url.as_str());
                 }
             }
+            // A click on the Dock icon.
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => meet::raise(app, "Dock icon"),
             // The last window closing (no exit code) leaves cooee in the menu bar; only an
             // explicit `app.exit` — the tray's Quit — ends it.
             tauri::RunEvent::ExitRequested {
