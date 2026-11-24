@@ -21,6 +21,11 @@ links:
 - **Calendar list in the menu bar** (today's meetings, each with Join). Deferred until there is a
   calendar source covering every profile's account. One candidate is macOS EventKit, once each
   account is added to Calendar.app.
+- **Honour new-window requests from Meet's main frame only.** Any frame in the Meet window,
+  add-on iframes included, can open a popup the call allows (replacing the real one) or send a
+  link to the default browser without a click, because `on_new_window` can't tell which frame
+  asked. Unlock: Tauri's `NewWindowFeatures` (or wry) exposing the requesting frame from WebKit's
+  navigation action.
 - **Chromium engine.** Swap to Tauri's CEF runtime once `tauri-runtime-cef` is stable, if
   WebKit's Meet support degrades.
 - **Hot-reloading the config.** Today it is read at launch. Unlock: wanting edits to apply live.

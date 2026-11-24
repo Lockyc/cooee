@@ -95,12 +95,16 @@ pub fn window(app: &AppHandle, kind: Popup) -> Option<WebviewWindow> {
 }
 
 /// Materialize the Meet page's popup as a `kind` window. One still registered is a stale one (its
-/// page lost the popup), so it goes.
+/// page lost the popup), so it goes. Any frame in the Meet window can ask, add-on iframes
+/// included, so a kind the call state doesn't allow is refused.
 pub fn create(
     app: &AppHandle,
     kind: Popup,
     features: NewWindowFeatures,
 ) -> NewWindowResponse<tauri::Wry> {
+    if disallowed(app, kind) {
+        return NewWindowResponse::Deny;
+    }
     close(app, kind);
     let built = WebviewWindowBuilder::new(
         app,

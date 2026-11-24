@@ -223,6 +223,7 @@
   let sig = signature(model);
   const listeners = new Set();
   let lastReported = "";
+  let delivered = ""; // the last report Rust accepted
 
   function report() {
     const live = capturing();
@@ -230,9 +231,14 @@
     const r = JSON.stringify([model.inCall, live, sharing]);
     if (r === lastReported) return;
     lastReported = r;
-    ipc("meet_state", { inCall: model.inCall, capturing: live, sharing }).catch(() => {
-      if (lastReported === r) lastReported = ""; // resend on the next tick
-    });
+    ipc("meet_state", { inCall: model.inCall, capturing: live, sharing }).then(
+      () => {
+        delivered = r;
+      },
+      () => {
+        if (lastReported === r) lastReported = ""; // resend on the next tick
+      }
+    );
   }
 
   let queued = false;
@@ -276,6 +282,9 @@
 
   window.__cooee = {
     model: () => model,
+    // Whether Rust holds the call state behind the current model; it refuses any popup that
+    // state doesn't allow.
+    synced: () => lastReported !== "" && delivered === lastReported,
     subscribe(fn) {
       listeners.add(fn);
       return () => listeners.delete(fn);

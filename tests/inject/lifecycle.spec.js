@@ -3,11 +3,11 @@
 const { test, expect } = require("@playwright/test");
 const { openMeet, ipcCalls, model, TRUSTED_TYPES_CSP } = require("./harness");
 
-async function openCall(page) {
+async function openCall(page, { reject } = {}) {
   const errors = [];
   page.context().on("page", (p) => p.on("pageerror", (e) => errors.push(`${p.url()}: ${e}`)));
   page.on("pageerror", (e) => errors.push(`${page.url()}: ${e}`));
-  await openMeet(page, "self-and-bot.html", { csp: TRUSTED_TYPES_CSP, clock: true });
+  await openMeet(page, "self-and-bot.html", { csp: TRUSTED_TYPES_CSP, clock: true, reject });
   await page.clock.pauseAt(Date.now() + 60_000);
   // Advance until your camera reads live (real video frames under the fake clock).
   await expect
@@ -16,6 +16,10 @@ async function openCall(page) {
       return (await model(page)).self.stream;
     })
     .toBe(true);
+  if (!reject) {
+    // The popups open once Rust holds the call: the next popup check after the report lands.
+    await page.clock.runFor(250);
+  }
   return errors;
 }
 
@@ -124,4 +128,18 @@ test("a popup Rust destroys while the call is unwanted stays closed until the ca
   await restoreMarker(page);
   await page.clock.runFor(1000);
   expect((await popups(page)).faces).toMatchObject({ popupOpen: true, doc: { built: true } });
+});
+
+test("no popup opens until Rust holds the call state that wants it", async ({ page }) => {
+  const REJECTED = 5;
+  await openCall(page, { reject: { meet_state: REJECTED } });
+  expect((await ipcCalls(page, "meet_state")).length).toBeLessThanOrEqual(REJECTED);
+  const diag = await popups(page);
+  expect(diag.faces.popupOpen).toBe(false);
+  expect(diag.controls.popupOpen).toBe(false);
+
+  await page.clock.runFor(10_000);
+  expect((await ipcCalls(page, "meet_state")).length).toBeGreaterThan(REJECTED);
+  expect((await popups(page)).faces).toMatchObject({ popupOpen: true, doc: { built: true } });
+  expect((await popups(page)).controls).toMatchObject({ popupOpen: true, doc: { built: true } });
 });

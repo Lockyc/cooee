@@ -80,8 +80,11 @@
     let popup = null;
     let ui = null;
 
+    // Only once Rust holds the call state that wants this popup: it refuses any other, and the
+    // 250 ms check retries.
     function open() {
       if (popup && !popup.closed) return;
+      if (!window.__cooee?.synced()) return;
       // An explicit URL: WebKit reports `window.open("")` as an empty string, which Tauri can't
       // parse and denies; the fragment tells Rust which window this is.
       // No size: Rust places and sizes every popup (src-tauri/src/spots.rs).
@@ -93,21 +96,23 @@
     // first sees, so the UI is (re)built into whichever document the popup holds now. Built with
     // DOM calls, never innerHTML: the popup inherits Meet's `require-trusted-types-for 'script'`
     // CSP, under which an innerHTML string throws.
-    // Only Rust destroys a popup, so a closed one is forgotten here; one still wanted (a
-    // stop-then-restart share whose "stopped" reached Rust late) opens again rather than wait for
-    // a model change that won't come.
+    // Only Rust destroys a popup, so a closed one is forgotten here. A wanted one that isn't open
+    // (refused, or a stop-then-restart share whose "stopped" reached Rust late) opens rather than
+    // wait for a model change that won't come.
     function ensureBuilt() {
       const wanted = !!window.__cooee && spec.wanted(window.__cooee.model());
       if (popup?.closed) {
         popup = null;
         ui = null;
         spec.reset?.();
+      }
+      if (!popup) {
         if (wanted) open();
         return;
       }
       // Unwanted but open: Rust's call latch is holding it through a dropped in-call marker, so
       // it keeps what it last showed.
-      if (!popup || !wanted) return;
+      if (!wanted) return;
       const d = popup.document;
       if (ui && ui.d === d && d.getElementById("root")) return;
       spec.reset?.();

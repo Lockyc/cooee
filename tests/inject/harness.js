@@ -68,8 +68,9 @@ function stubs() {
 }
 
 // Open `fixture` (a file in fixtures/) as a Meet call page. `csp` adds a
-// Content-Security-Policy header; `clock` installs Playwright's fake clock first.
-async function openMeet(page, fixture, { csp, clock } = {}) {
+// Content-Security-Policy header; `clock` installs Playwright's fake clock first; `reject`
+// ({ cmd: n }) rejects each command's first n calls.
+async function openMeet(page, fixture, { csp, clock, reject } = {}) {
   const body = fs.readFileSync(path.join(FIXTURES, fixture), "utf8");
   await page.route("https://meet.google.com/**", (route) =>
     route.fulfill({
@@ -81,6 +82,9 @@ async function openMeet(page, fixture, { csp, clock } = {}) {
   );
   if (clock) await page.clock.install();
   await page.addInitScript(stubs);
+  if (reject) {
+    await page.addInitScript((r) => Object.entries(r).forEach(([cmd, n]) => window.__fake.rejectNext(cmd, n)), reject);
+  }
   for (const f of INJECTED) {
     await page.addInitScript({ content: fs.readFileSync(path.join(INJECT, f), "utf8") });
   }
