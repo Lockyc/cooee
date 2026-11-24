@@ -6,18 +6,9 @@ use tauri::{AppHandle, Manager};
 use crate::meet::{CallState, MeetState};
 
 #[tauri::command]
-pub fn meet_state(
-    app: AppHandle,
-    in_call: bool,
-    others: usize,
-    adapter_ok: bool,
-    capturing: bool,
-    sharing: bool,
-) {
+pub fn meet_state(app: AppHandle, in_call: bool, capturing: bool, sharing: bool) {
     let next = CallState {
         in_call,
-        others,
-        adapter_ok,
         capturing,
         sharing,
     };

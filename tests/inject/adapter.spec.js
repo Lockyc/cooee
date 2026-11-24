@@ -8,15 +8,16 @@ test("your tile is you with your camera on, named from text not an icon glyph; a
     .poll(async () => (await model(page)).participants.find((p) => p.isSelf)?.cameraOn, { timeout: 5000 })
     .toBe(true);
 
-  const { participants } = await model(page);
+  const { participants, others } = await model(page);
   expect(participants).toHaveLength(2);
   const self = participants.find((p) => p.isSelf);
   expect(self).toMatchObject({ name: "Alex Example", cameraOn: true, stream: true, isBot: false });
   const bot = participants.find((p) => !p.isSelf);
   expect(bot).toMatchObject({ name: "Fireflies.ai Notetaker", isBot: true });
+  expect(others).toEqual([]);
 
   const reports = await ipcCalls(page, "meet_state");
-  expect(reports.at(-1)).toMatchObject({ inCall: true, others: 0, adapterOk: true, capturing: true });
+  expect(reports.at(-1)).toEqual({ inCall: true, capturing: true, sharing: false });
 });
 
 test("your own screen share, requested through the prototype, is never the share window's presentation", async ({ page }) => {
@@ -25,8 +26,10 @@ test("your own screen share, requested through the prototype, is never the share
     .poll(async () => (await model(page)).participants.filter((p) => p.cameraOn).length, { timeout: 5000 })
     .toBe(3);
 
-  expect((await model(page)).presentation).toBeNull();
-  expect((await ipcCalls(page, "meet_state")).at(-1)).toMatchObject({ inCall: true, others: 1, sharing: false });
+  const { presentation, others } = await model(page);
+  expect(presentation).toBeNull();
+  expect(others).toHaveLength(1);
+  expect((await ipcCalls(page, "meet_state")).at(-1)).toMatchObject({ inCall: true, sharing: false });
   // The picker settled, so darkfield is told it closed.
   expect(await ipcCalls(page, "share_picker_closed")).toHaveLength(1);
 });

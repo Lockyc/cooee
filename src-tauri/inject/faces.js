@@ -43,7 +43,7 @@
 
   function render(ui, model) {
     const { d, grid, chips, message } = ui;
-    const others = model.participants.filter((p) => !p.isSelf && !p.isPresentation && !p.isBot);
+    const { others } = model;
     const faces = others.filter((p) => p.cameraOn && p.stream);
     const off = others.filter((p) => !(p.cameraOn && p.stream));
 

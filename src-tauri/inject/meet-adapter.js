@@ -1,5 +1,5 @@
 // cooee's Meet adapter — the ONLY code that knows Google Meet's DOM. It reads the call into a
-// platform-neutral model ({ inCall, adapterOk, participants: [{ id, name, isBot, ... }], self: { micOn, cameraOn,
+// platform-neutral model ({ inCall, adapterOk, participants: [{ id, name, isBot, ... }], others, self: { micOn, cameraOn,
 // stream }, presentation: { id, name, stream } | null }) and performs Meet's own
 // controls. Everything else in cooee consumes `window.__cooee` and never touches Meet's DOM, so a
 // Meet redesign is fixed here, in SELECTORS and the readers below it.
@@ -203,6 +203,8 @@
       inCall,
       adapterOk,
       participants,
+      // The people on the call besides you: no self tile, presentation or notetaker bot.
+      others: participants.filter((p) => !p.isSelf && !p.isPresentation && !p.isBot),
       self: readSelf(participants),
       presentation: inCall ? readPresentation(participants) : null,
     };
@@ -223,13 +225,12 @@
   let lastReported = "";
 
   function report() {
-    const others = model.participants.filter((p) => !p.isSelf && !p.isPresentation && !p.isBot).length;
     const live = capturing();
     const sharing = !!model.presentation;
-    const r = JSON.stringify([model.inCall, others, model.adapterOk, live, sharing]);
+    const r = JSON.stringify([model.inCall, live, sharing]);
     if (r === lastReported) return;
     lastReported = r;
-    ipc("meet_state", { inCall: model.inCall, others, adapterOk: model.adapterOk, capturing: live, sharing }).catch(() => {
+    ipc("meet_state", { inCall: model.inCall, capturing: live, sharing }).catch(() => {
       if (lastReported === r) lastReported = ""; // resend on the next tick
     });
   }

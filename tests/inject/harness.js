@@ -94,9 +94,11 @@ const ipcCalls = (page, cmd) =>
 const model = (page) =>
   page.evaluate(() => {
     const m = window.__cooee.model();
+    const plain = ({ stream, ...p }) => ({ ...p, stream: !!stream });
     return {
       ...m,
-      participants: m.participants.map(({ stream, ...p }) => ({ ...p, stream: !!stream })),
+      participants: m.participants.map(plain),
+      others: m.others.map(plain),
       self: { ...m.self, stream: !!m.self.stream },
       presentation: m.presentation && { id: m.presentation.id, name: m.presentation.name },
     };

@@ -48,8 +48,6 @@ pub fn route_navigation(url: &Url) -> NavRoute {
 #[derive(Debug, Default, Clone, Copy, PartialEq, serde::Serialize)]
 pub struct CallState {
     pub in_call: bool,
-    pub others: usize,
-    pub adapter_ok: bool,
     /// The page holds a live camera or mic track — read from getUserMedia, not Meet's DOM.
     pub capturing: bool,
     /// Another participant is presenting (your own share doesn't count).
@@ -369,8 +367,6 @@ mod tests {
         let state = MeetState::default();
         state.set_call(CallState {
             in_call: true,
-            others: 2,
-            adapter_ok: true,
             capturing: true,
             sharing: true,
         });
