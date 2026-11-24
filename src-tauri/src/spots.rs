@@ -561,9 +561,12 @@ mod property_tests {
         })
     }
 
+    /// Screens as listed: each one's frame, and whether it is the main display.
+    type Screens = Vec<(Rect, bool)>;
+
     /// 1 to 4 screens (identical ones included), exactly one of them the main display, listed
     /// in two independent orders.
-    fn screens_in_two_orders() -> impl Strategy<Value = (Vec<(Rect, bool)>, Vec<(Rect, bool)>)> {
+    fn screens_in_two_orders() -> impl Strategy<Value = (Screens, Screens)> {
         prop::collection::vec(
             prop_oneof![
                 rect(),
