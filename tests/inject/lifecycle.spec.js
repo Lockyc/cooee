@@ -85,3 +85,43 @@ test("a popup whose document is replaced (Tauri's own about:blank load) is rebui
   await page.clock.runFor(250);
   expect((await popups(page)).faces).toMatchObject({ popupOpen: true, doc: { built: true } });
 });
+
+// Meet re-renders without its Leave button, then puts it back.
+const dropMarker = (page) =>
+  page.evaluate(() => {
+    const b = document.querySelector('[aria-label="Leave call"]');
+    window.__marker = { b, parent: b.parentNode };
+    b.remove();
+  });
+const restoreMarker = (page) => page.evaluate(() => window.__marker.parent.append(window.__marker.b));
+
+test("the page keeps its popups through a re-render that drops the in-call marker", async ({ page }) => {
+  const errors = await openCall(page);
+  const faces = page.context().pages().find((p) => p.url().endsWith("#faces"));
+  const windows = page.context().pages().length;
+
+  await dropMarker(page);
+  await page.clock.runFor(1000);
+  expect((await popups(page)).faces).toMatchObject({ popupOpen: true, doc: { built: true } });
+
+  await restoreMarker(page);
+  await page.clock.runFor(1000);
+  expect(faces.isClosed()).toBe(false);
+  expect(page.context().pages()).toHaveLength(windows);
+  expect((await popups(page)).faces).toMatchObject({ popupOpen: true, doc: { built: true } });
+  expect(errors).toEqual([]);
+});
+
+test("a popup Rust destroys while the call is unwanted stays closed until the call wants it", async ({ page }) => {
+  await openCall(page);
+  await dropMarker(page);
+  await page.clock.runFor(300);
+  await page.context().pages().find((p) => p.url().endsWith("#faces")).close();
+
+  await page.clock.runFor(1000);
+  expect((await popups(page)).faces.popupOpen).toBe(false);
+
+  await restoreMarker(page);
+  await page.clock.runFor(1000);
+  expect((await popups(page)).faces).toMatchObject({ popupOpen: true, doc: { built: true } });
+});

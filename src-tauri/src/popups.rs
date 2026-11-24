@@ -6,7 +6,7 @@
 use tauri::webview::{NewWindowFeatures, NewWindowResponse};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
-use crate::meet::CallState;
+use crate::meet::{CallState, MeetState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Popup {
@@ -70,10 +70,18 @@ fn label_kind(label: &str) -> Option<Popup> {
         .find(|&k| label_number(k, label).is_some())
 }
 
-/// Whether `kind` may not outlive this call state: every popup ends with the call, and the share
-/// window also ends with the share — destroyed even when hidden, so the next share opens fresh.
-pub fn must_close(call: CallState, kind: Popup) -> bool {
-    !call.in_call || (kind == Popup::Share && !call.sharing)
+/// Whether `kind` may not exist while `in_call` ([`MeetState::in_call`]) and the adapter's last
+/// report `call` hold: every popup ends with the call, and the share window also ends with the
+/// share — destroyed even when hidden, so the next share opens fresh. A report without Meet's
+/// in-call marker reads no presentation, so only one with the marker ends a share.
+pub fn must_close(in_call: bool, call: CallState, kind: Popup) -> bool {
+    !in_call || (kind == Popup::Share && call.in_call && !call.sharing)
+}
+
+/// [`must_close`] against the Meet window's current state.
+fn disallowed(app: &AppHandle, kind: Popup) -> bool {
+    let state = app.state::<MeetState>();
+    must_close(state.in_call(), state.call(), kind)
 }
 
 /// The current window of `kind`: the newest, since a destroyed one stays registered until its
@@ -147,10 +155,10 @@ pub fn close(app: &AppHandle, kind: Popup) {
     }
 }
 
-/// Destroy the popups `call` no longer allows.
-pub fn close_disallowed(app: &AppHandle, call: CallState) {
+/// Destroy the popups the Meet window's state no longer allows.
+pub fn close_disallowed(app: &AppHandle) {
     for kind in Popup::ALL {
-        if must_close(call, kind) {
+        if disallowed(app, kind) {
             close(app, kind);
         }
     }
@@ -216,17 +224,45 @@ mod tests {
         };
         for kind in Popup::ALL {
             assert!(
-                must_close(CallState::default(), kind),
+                must_close(false, CallState::default(), kind),
                 "{kind:?} ends with the call"
             );
-            assert!(!must_close(call, kind), "{kind:?} stays during a share");
+            assert!(
+                !must_close(true, call, kind),
+                "{kind:?} stays during a share"
+            );
         }
         let no_share = CallState {
             sharing: false,
             ..call
         };
-        assert!(must_close(no_share, Popup::Share), "the share ended");
-        assert!(!must_close(no_share, Popup::Faces));
-        assert!(!must_close(no_share, Popup::Controls));
+        assert!(must_close(true, no_share, Popup::Share), "the share ended");
+        assert!(!must_close(true, no_share, Popup::Faces));
+        assert!(!must_close(true, no_share, Popup::Controls));
+    }
+
+    #[test]
+    fn every_popup_survives_a_re_render_that_drops_the_in_call_marker() {
+        // Mid-share, Meet drops its Leave button while the camera is live: the latch holds, and
+        // the marker-less report reads no presentation.
+        let state = MeetState::default();
+        state.report(CallState {
+            in_call: true,
+            capturing: true,
+            sharing: true,
+        });
+        state.report(CallState {
+            in_call: false,
+            capturing: true,
+            sharing: false,
+        });
+        for kind in Popup::ALL {
+            assert!(!must_close(state.in_call(), state.call(), kind), "{kind:?}");
+        }
+        // Capture stops too: a real leave.
+        state.report(CallState::default());
+        for kind in Popup::ALL {
+            assert!(must_close(state.in_call(), state.call(), kind), "{kind:?}");
+        }
     }
 }

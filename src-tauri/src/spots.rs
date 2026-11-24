@@ -299,7 +299,7 @@ fn toggle_popup(app: &AppHandle, kind: Popup) {
         Some(w) => {
             let _ = w.show();
         }
-        None if app.state::<MeetState>().call().in_call => {
+        None if app.state::<MeetState>().in_call() => {
             if let Some(m) = meet::meet_window(app) {
                 let _ = m.eval(format!(
                     "window.__cooeePopups && window.__cooeePopups.open('{}')",

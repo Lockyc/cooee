@@ -13,7 +13,7 @@ pub fn meet_state(app: AppHandle, in_call: bool, capturing: bool, sharing: bool)
         sharing,
     };
     let left = app.state::<MeetState>().report(next);
-    crate::popups::close_disallowed(&app, next);
+    crate::popups::close_disallowed(&app);
     if left {
         let a = app.clone();
         let _ = app.run_on_main_thread(move || crate::meet::go_home(&a));

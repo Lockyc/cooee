@@ -110,6 +110,11 @@ impl MeetState {
     pub fn call(&self) -> CallState {
         self.inner.lock().unwrap().call
     }
+    /// Whether this page is in a call: the `leave_step` latch, which holds through a re-render
+    /// that drops Meet's in-call marker. Leaving, the popups and their toggles all read this.
+    pub fn in_call(&self) -> bool {
+        self.inner.lock().unwrap().in_call_latch
+    }
     pub fn set_call(&self, call: CallState) {
         let mut g = self.inner.lock().unwrap();
         g.call = call;
