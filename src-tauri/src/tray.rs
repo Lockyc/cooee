@@ -63,7 +63,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     menu.append(&sep()?)?;
     // The hotkeys' actions, for when a shortcut clashes or is forgotten.
     let faces = Submenu::with_id(app, "faces", "Windows", true)?;
-    for (name, label) in crate::spots::MENU_ACTIONS {
+    for (_, name, label) in crate::spots::ACTIONS {
         faces.append(&MenuItem::with_id(
             app,
             format!("{FACES}{name}"),

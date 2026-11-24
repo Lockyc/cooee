@@ -23,7 +23,7 @@ use crate::meet::{self, MeetState, HOME_URL};
 use crate::popups::{self, Popup};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum Action {
+pub enum Action {
     Talk,
     Aside,
     CycleSize,
@@ -311,35 +311,47 @@ fn toggle_popup(app: &AppHandle, kind: Popup) {
     }
 }
 
-/// The tray's Windows items: (action name, label).
-pub const MENU_ACTIONS: [(&str, &str); 9] = [
-    ("talk", "Snap to Talk"),
-    ("aside", "Snap to Aside"),
-    ("cycle_size", "Cycle Size"),
-    ("toggle_faces", "Show/Hide Faces"),
-    ("toggle_controls", "Show/Hide Controls"),
-    ("toggle_share", "Show/Hide Share"),
-    ("toggle_meet", "Show/Hide Meet"),
-    ("save_talk", "Save as Talk"),
-    ("save_aside", "Save as Aside"),
+/// Every action, in the tray's Windows order: (action, name, menu label). The name is the tray
+/// item's id and what the hotkeys' error dialog calls it.
+pub const ACTIONS: [(Action, &str, &str); 9] = [
+    (Action::Talk, "talk", "Snap to Talk"),
+    (Action::Aside, "aside", "Snap to Aside"),
+    (Action::CycleSize, "cycle_size", "Cycle Size"),
+    (Action::ToggleFaces, "toggle_faces", "Show/Hide Faces"),
+    (
+        Action::ToggleControls,
+        "toggle_controls",
+        "Show/Hide Controls",
+    ),
+    (Action::ToggleShare, "toggle_share", "Show/Hide Share"),
+    (Action::ToggleMeet, "toggle_meet", "Show/Hide Meet"),
+    (Action::SaveTalk, "save_talk", "Save as Talk"),
+    (Action::SaveAside, "save_aside", "Save as Aside"),
 ];
 
 fn action_named(name: &str) -> Option<Action> {
-    Some(match name {
-        "talk" => Action::Talk,
-        "aside" => Action::Aside,
-        "cycle_size" => Action::CycleSize,
-        "toggle_faces" => Action::ToggleFaces,
-        "toggle_controls" => Action::ToggleControls,
-        "toggle_share" => Action::ToggleShare,
-        "toggle_meet" => Action::ToggleMeet,
-        "save_talk" => Action::SaveTalk,
-        "save_aside" => Action::SaveAside,
-        _ => return None,
+    ACTIONS
+        .into_iter()
+        .find(|&(_, n, _)| n == name)
+        .map(|(a, _, _)| a)
+}
+
+/// The config's accelerator for `action`; `None` for an action with no hotkey.
+fn accelerator(hk: &cooee_config::Hotkeys, action: Action) -> Option<&str> {
+    Some(match action {
+        Action::Talk => &hk.talk,
+        Action::Aside => &hk.aside,
+        Action::CycleSize => &hk.cycle_size,
+        Action::ToggleFaces => &hk.toggle_faces,
+        Action::ToggleControls => &hk.toggle_controls,
+        Action::ToggleShare => return None,
+        Action::ToggleMeet => &hk.toggle_meet,
+        Action::SaveTalk => &hk.save_talk,
+        Action::SaveAside => &hk.save_aside,
     })
 }
 
-/// Run a [`MENU_ACTIONS`] action by name.
+/// Run an [`ACTIONS`] action by name.
 pub fn run_named(app: &AppHandle, name: &str) {
     if let Some(a) = action_named(name) {
         run(app, a);
@@ -412,22 +424,11 @@ pub fn register_hotkeys(app: &AppHandle) -> tauri::Result<()> {
             .build(),
     )?;
     let hk = app.state::<Config>().hotkeys.clone();
-    let wanted = [
-        (Action::Talk, "talk", hk.talk),
-        (Action::Aside, "aside", hk.aside),
-        (Action::CycleSize, "cycle_size", hk.cycle_size),
-        (Action::ToggleFaces, "toggle_faces", hk.toggle_faces),
-        (
-            Action::ToggleControls,
-            "toggle_controls",
-            hk.toggle_controls,
-        ),
-        (Action::ToggleMeet, "toggle_meet", hk.toggle_meet),
-        (Action::SaveTalk, "save_talk", hk.save_talk),
-        (Action::SaveAside, "save_aside", hk.save_aside),
-    ];
     let mut failed = Vec::new();
-    for (action, name, accel) in wanted {
+    for (action, name, _) in ACTIONS {
+        let Some(accel) = accelerator(&hk, action) else {
+            continue;
+        };
         let ok = accel
             .parse::<Shortcut>()
             .ok()
@@ -630,15 +631,12 @@ mod menu_tests {
     use super::*;
 
     #[test]
-    fn every_menu_action_resolves() {
-        for (name, _) in MENU_ACTIONS {
-            assert!(action_named(name).is_some(), "{name}");
-        }
-    }
-
-    #[test]
     fn the_controls_window_toggles_from_the_menu() {
-        assert!(MENU_ACTIONS.contains(&("toggle_controls", "Show/Hide Controls")));
+        assert!(ACTIONS.contains(&(
+            Action::ToggleControls,
+            "toggle_controls",
+            "Show/Hide Controls"
+        )));
         assert_eq!(
             action_named("toggle_controls"),
             Some(Action::ToggleControls)
@@ -647,7 +645,7 @@ mod menu_tests {
 
     #[test]
     fn a_hidden_share_window_comes_back_from_the_menu() {
-        assert!(MENU_ACTIONS.contains(&("toggle_share", "Show/Hide Share")));
+        assert!(ACTIONS.contains(&(Action::ToggleShare, "toggle_share", "Show/Hide Share")));
         assert_eq!(action_named("toggle_share"), Some(Action::ToggleShare));
     }
 }
