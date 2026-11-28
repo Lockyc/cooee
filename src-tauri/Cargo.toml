@@ -15,7 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 # Shared release tooling + build_stamp (zero-tauri build-dep). Same rev as the runtime entry below.
-shell-core = { git = "https://github.com/Lockyc/shell-core", rev = "4fac1995d8b364c715883ca3fb6096636b1c9ce9", default-features = false }
+shell-core = { git = "https://github.com/Lockyc/shell-core", rev = "578ff7329d4fe20943fbb29368a37b99d7e89f13", default-features = false }
 
 [dependencies]
 # `unstable` for on_new_window (the faces popup); `tray-icon` for the menu-bar item.
@@ -29,7 +29,7 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-global-shortcut = "2"
-shell-core = { git = "https://github.com/Lockyc/shell-core", rev = "4fac1995d8b364c715883ca3fb6096636b1c9ce9", features = ["runtime"] }
+shell-core = { git = "https://github.com/Lockyc/shell-core", rev = "578ff7329d4fe20943fbb29368a37b99d7e89f13", features = ["runtime"] }
 cooee-config = { path = "../crates/cooee-config" }
 
 [target.'cfg(target_os = "macos")'.dependencies]

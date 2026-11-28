@@ -1,5 +1,6 @@
 //! The Meet window: one at a time, in one profile's WebKit data store.
 
+use shell_core::spaces::ShellWindow as _;
 use std::sync::Mutex;
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
@@ -224,7 +225,7 @@ fn build(app: &AppHandle, profile: &Profile, url: &Url) -> tauri::Result<()> {
     let mut builder = WebviewWindowBuilder::new(app, MEET_LABEL, WebviewUrl::External(url.clone()))
         .title(format!("Meet — {}", profile.name))
         .inner_size(1200.0, 820.0)
-        .focused(shell_core::focus::focused())
+        .shell_window()
         .user_agent(shell_core::web::desktop_ua())
         .data_store_identifier(shell_core::web::session::data_store_id(&profile.name));
     for js in INJECTED_JS {
